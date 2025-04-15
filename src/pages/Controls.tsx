@@ -36,14 +36,14 @@ const controls = {
   ],
   calibration: [
     {
-      id: "CG001",
+      id: "TC003",  // Changed from CG001
       name: "AI Input Data Quality Standards",
       version: "1.2.0",
       category: "Data Quality",
       type: "guide",
     },
     {
-      id: "CG002",
+      id: "TC004",  // Changed from CG002
       name: "Model Explainability Requirements",
       version: "2.0.1",
       category: "Transparency",
