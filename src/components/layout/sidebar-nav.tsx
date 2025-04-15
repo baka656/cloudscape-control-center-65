@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -50,15 +49,9 @@ export function SidebarNav({ className, isAdmin, ...props }: SidebarNavProps) {
       icon: <BarChart3 className="h-5 w-5" />,
     },
     {
-      title: "Tech Validation Controls",
-      href: "/tech-controls",
+      title: "Controls Management",
+      href: "/controls",
       icon: <FileCog className="h-5 w-5" />,
-      adminOnly: true,
-    },
-    {
-      title: "Calibration Guides",
-      href: "/calibration-guides",
-      icon: <BookCheck className="h-5 w-5" />,
       adminOnly: true,
     },
     {
