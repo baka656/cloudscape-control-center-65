@@ -1,25 +1,13 @@
-
 import * as React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Search, Plus, FileEdit, Eye, Trash2 } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Plus } from "lucide-react";
+import { ValidationControl } from "@/types/validation-control";
+import { ControlsSearch } from "@/components/controls/ControlsSearch";
+import { ControlsTable } from "@/components/controls/ControlsTable";
 
-// Unified validation controls data structure
-const validationControls = [
+// Validation controls data
+const validationControls: ValidationControl[] = [
   {
     id: "TC001",
     title: "Pipeline Encryption",
@@ -45,7 +33,17 @@ const validationControls = [
 ];
 
 export default function Controls() {
-  const [expandedControl, setExpandedControl] = React.useState<string | null>(null);
+  const [filteredControls, setFilteredControls] = React.useState(validationControls);
+
+  const handleSearch = (searchTerm: string) => {
+    const filtered = validationControls.filter(
+      control =>
+        control.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        control.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        control.description.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setFilteredControls(filtered);
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -70,102 +68,8 @@ export default function Controls() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center space-x-2 mb-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search controls..."
-                className="pl-8"
-              />
-            </div>
-            <Button variant="outline">Filter</Button>
-          </div>
-
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {validationControls.map((control) => (
-                  <React.Fragment key={control.id}>
-                    <TableRow>
-                      <TableCell className="font-medium">{control.id}</TableCell>
-                      <TableCell>
-                        <Collapsible
-                          open={expandedControl === control.id}
-                          onOpenChange={() => setExpandedControl(expandedControl === control.id ? null : control.id)}
-                        >
-                          <CollapsibleTrigger className="font-medium hover:underline">
-                            {control.title}
-                          </CollapsibleTrigger>
-                          <CollapsibleContent className="space-y-4 pt-4">
-                            <div>
-                              <h4 className="text-sm font-semibold">Description</h4>
-                              <p className="text-sm text-muted-foreground">{control.description}</p>
-                            </div>
-                            <div>
-                              <h4 className="text-sm font-semibold">Evidence Expected</h4>
-                              <p className="text-sm text-muted-foreground">{control.evidenceExpected}</p>
-                            </div>
-                            <div>
-                              <h4 className="text-sm font-semibold">Acceptable Examples</h4>
-                              <p className="text-sm text-muted-foreground">{control.acceptableExamples}</p>
-                            </div>
-                            <div>
-                              <h4 className="text-sm font-semibold">Bad Examples</h4>
-                              <p className="text-sm text-muted-foreground">{control.badExamples}</p>
-                            </div>
-                            <div>
-                              <h4 className="text-sm font-semibold">Implementation Suggestions</h4>
-                              <p className="text-sm text-muted-foreground">{control.implementationSuggestions}</p>
-                            </div>
-                            <div>
-                              <h4 className="text-sm font-semibold">Evidence Types</h4>
-                              <div className="flex gap-2 mt-1">
-                                {control.evidenceTypes.map((type) => (
-                                  <span
-                                    key={type}
-                                    className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/20 dark:text-blue-400"
-                                  >
-                                    {type}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          </CollapsibleContent>
-                        </Collapsible>
-                      </TableCell>
-                      <TableCell>
-                        <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
-                          {control.category}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end space-x-2">
-                          <Button variant="ghost" size="icon">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon">
-                            <FileEdit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  </React.Fragment>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <ControlsSearch onSearch={handleSearch} />
+          <ControlsTable controls={filteredControls} />
         </CardContent>
       </Card>
     </div>
