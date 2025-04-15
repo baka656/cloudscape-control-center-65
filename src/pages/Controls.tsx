@@ -1,8 +1,8 @@
 
 import * as React from "react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Search, Plus, FileEdit, Trash2, Download, Eye } from "lucide-react";
+import { Search, Plus, FileEdit, Eye, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -12,54 +12,48 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
-// Mock combined controls data
-const controls = {
-  tech: [
-    {
-      id: "TC001",
-      name: "Pipeline Encryption",
-      description: "Data must be encrypted during transit in ML pipelines",
-      category: "Security",
-      criticality: "High",
-      type: "technical",
-    },
-    {
-      id: "TC002",
-      name: "Model Drift Monitoring",
-      description: "Monitoring for model performance degradation over time",
-      category: "Reliability",
-      criticality: "Medium",
-      type: "technical",
-    }
-  ],
-  calibration: [
-    {
-      id: "TC003",  // Changed from CG001
-      name: "AI Input Data Quality Standards",
-      version: "1.2.0",
-      category: "Data Quality",
-      type: "guide",
-    },
-    {
-      id: "TC004",  // Changed from CG002
-      name: "Model Explainability Requirements",
-      version: "2.0.1",
-      category: "Transparency",
-      type: "guide",
-    }
-  ]
-};
+// Unified validation controls data structure
+const validationControls = [
+  {
+    id: "TC001",
+    title: "Pipeline Encryption",
+    description: "Data must be encrypted during transit in ML pipelines",
+    evidenceExpected: "Encryption implementation details and security audit results",
+    acceptableExamples: "SSL/TLS implementation with strong cipher suites, Key rotation policies",
+    badExamples: "Unencrypted data transmission, Weak encryption algorithms",
+    implementationSuggestions: "Use industry-standard encryption protocols, Implement proper key management",
+    evidenceTypes: ["Documentation", "Security Audit", "Code Review"],
+    category: "Security",
+  },
+  {
+    id: "TC002",
+    title: "Model Drift Monitoring",
+    description: "Monitoring for model performance degradation over time",
+    evidenceExpected: "Regular monitoring reports and drift detection system",
+    acceptableExamples: "Automated drift detection with alerts, Performance metric tracking",
+    badExamples: "Manual checks only, No baseline metrics",
+    implementationSuggestions: "Set up automated monitoring, Define clear drift thresholds",
+    evidenceTypes: ["Monitoring Data", "Alert Logs", "Performance Reports"],
+    category: "Reliability",
+  }
+];
 
 export default function Controls() {
+  const [expandedControl, setExpandedControl] = React.useState<string | null>(null);
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Controls Management</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Validation Controls</h1>
           <p className="text-muted-foreground">
-            Manage AI system controls and validation guidelines
+            Manage and monitor AI system validation controls
           </p>
         </div>
         <Button className="bg-primary">
@@ -70,9 +64,9 @@ export default function Controls() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Controls & Guidelines</CardTitle>
+          <CardTitle>Control Details</CardTitle>
           <CardDescription>
-            Unified management of technical controls and calibration guides
+            View and manage validation controls for AI systems
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -88,186 +82,91 @@ export default function Controls() {
             <Button variant="outline">Filter</Button>
           </div>
 
-          <Tabs defaultValue="all" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="all">All Controls</TabsTrigger>
-              <TabsTrigger value="tech">Technical Controls</TabsTrigger>
-              <TabsTrigger value="calibration">Calibration Guides</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="all">
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {validationControls.map((control) => (
+                  <React.Fragment key={control.id}>
                     <TableRow>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableCell className="font-medium">{control.id}</TableCell>
+                      <TableCell>
+                        <Collapsible
+                          open={expandedControl === control.id}
+                          onOpenChange={() => setExpandedControl(expandedControl === control.id ? null : control.id)}
+                        >
+                          <CollapsibleTrigger className="font-medium hover:underline">
+                            {control.title}
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="space-y-4 pt-4">
+                            <div>
+                              <h4 className="text-sm font-semibold">Description</h4>
+                              <p className="text-sm text-muted-foreground">{control.description}</p>
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-semibold">Evidence Expected</h4>
+                              <p className="text-sm text-muted-foreground">{control.evidenceExpected}</p>
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-semibold">Acceptable Examples</h4>
+                              <p className="text-sm text-muted-foreground">{control.acceptableExamples}</p>
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-semibold">Bad Examples</h4>
+                              <p className="text-sm text-muted-foreground">{control.badExamples}</p>
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-semibold">Implementation Suggestions</h4>
+                              <p className="text-sm text-muted-foreground">{control.implementationSuggestions}</p>
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-semibold">Evidence Types</h4>
+                              <div className="flex gap-2 mt-1">
+                                {control.evidenceTypes.map((type) => (
+                                  <span
+                                    key={type}
+                                    className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/20 dark:text-blue-400"
+                                  >
+                                    {type}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      </TableCell>
+                      <TableCell>
+                        <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
+                          {control.category}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end space-x-2">
+                          <Button variant="ghost" size="icon">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon">
+                            <FileEdit className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {[...controls.tech, ...controls.calibration].map((control) => (
-                      <TableRow key={control.id}>
-                        <TableCell className="font-medium">{control.id}</TableCell>
-                        <TableCell>
-                          <div className="font-medium">{control.name}</div>
-                          {'description' in control && (
-                            <div className="text-sm text-muted-foreground">{control.description}</div>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
-                            {control.category}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          {control.type === "technical" ? (
-                            <span className="inline-flex items-center gap-1">
-                              <FileEdit className="h-3 w-3" />
-                              Technical
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1">
-                              <Eye className="h-3 w-3" />
-                              Guide
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end space-x-2">
-                            <Button variant="ghost" size="icon">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon">
-                              <FileEdit className="h-4 w-4" />
-                            </Button>
-                            {control.type === "guide" && (
-                              <Button variant="ghost" size="icon">
-                                <Download className="h-4 w-4" />
-                              </Button>
-                            )}
-                            <Button variant="ghost" size="icon">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="tech">
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Control Name</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Criticality</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {controls.tech.map((control) => (
-                      <TableRow key={control.id}>
-                        <TableCell className="font-medium">{control.id}</TableCell>
-                        <TableCell>
-                          <div className="font-medium">{control.name}</div>
-                          <div className="text-sm text-muted-foreground">{control.description}</div>
-                        </TableCell>
-                        <TableCell>
-                          <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
-                            {control.category}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                            control.criticality === "High"
-                              ? "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"
-                              : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400"
-                          }`}>
-                            {control.criticality}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end space-x-2">
-                            <Button variant="ghost" size="icon">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon">
-                              <FileEdit className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="calibration">
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Guide Name</TableHead>
-                      <TableHead>Version</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {controls.calibration.map((guide) => (
-                      <TableRow key={guide.id}>
-                        <TableCell className="font-medium">{guide.id}</TableCell>
-                        <TableCell>{guide.name}</TableCell>
-                        <TableCell>{guide.version}</TableCell>
-                        <TableCell>
-                          <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
-                            {guide.category}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end space-x-2">
-                            <Button variant="ghost" size="icon">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon">
-                              <Download className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-        <CardFooter>
-          <div className="flex items-center justify-between w-full text-sm text-muted-foreground">
-            <div>Showing all controls and guidelines</div>
-            <div className="flex items-center space-x-2">
-              <Button variant="outline" size="sm" disabled>
-                Previous
-              </Button>
-              <Button variant="outline" size="sm">
-                Next
-              </Button>
-            </div>
+                  </React.Fragment>
+                ))}
+              </TableBody>
+            </Table>
           </div>
-        </CardFooter>
+        </CardContent>
       </Card>
     </div>
   );
