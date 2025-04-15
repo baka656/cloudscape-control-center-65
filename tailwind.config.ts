@@ -61,6 +61,23 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				// AWS Cloudscape inspired colors
+				aws: {
+					blue: '#0073BB',
+					'blue-dark': '#0D47A1',
+					'blue-light': '#4595D1',
+					navy: '#232F3E',
+					orange: '#FF9900',
+					'orange-dark': '#EC7211',
+					'gray-100': '#F2F4F4',
+					'gray-200': '#E3E4E4',
+					'gray-300': '#D1D5DB',
+					'gray-400': '#9DA3AE',
+					'gray-500': '#5F6B7A',
+					'gray-600': '#414D5C',
+					'gray-700': '#232F3E',
+					'gray-800': '#161E2D'
 				}
 			},
 			borderRadius: {
