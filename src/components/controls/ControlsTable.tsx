@@ -31,7 +31,6 @@ export function ControlsTable({ controls }: ControlsTableProps) {
               <TableHead>ID</TableHead>
               <TableHead>Title</TableHead>
               <TableHead>Category</TableHead>
-              <TableHead>Description</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -41,14 +40,9 @@ export function ControlsTable({ controls }: ControlsTableProps) {
                 <TableCell className="font-medium">{control.id}</TableCell>
                 <TableCell>{control.title}</TableCell>
                 <TableCell>
-                  <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
+                  <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
                     {control.category}
                   </span>
-                </TableCell>
-                <TableCell className="max-w-md">
-                  <p className="truncate text-sm text-muted-foreground">
-                    {control.description}
-                  </p>
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end space-x-2">
@@ -75,7 +69,7 @@ export function ControlsTable({ controls }: ControlsTableProps) {
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>
               {mode === "view" ? "View Control Details" : "Edit Control"}
