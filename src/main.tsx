@@ -3,8 +3,8 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
-import { Amplify } from 'aws-amplify';
-import { amplifyConfig } from './config/aws-config.ts';
+import { Amplify } from 'aws-amplify'
+import { amplifyConfig } from './config/aws-config.ts'
 
 // Polyfills for AWS SDK
 window.global = window;
@@ -17,10 +17,7 @@ window.process = {
   stdin: null,
   argv: [],
   version: '',
-  versions: {
-    node: '16.0.0' // Add a fake node version
-  },
-  nextTick: (cb: Function) => setTimeout(cb, 0)
+  versions: {} as any
 };
 
 // Configure Amplify

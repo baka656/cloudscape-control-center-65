@@ -16,18 +16,23 @@ export const awsConfig = {
 
 // Updated Amplify configuration with correct types
 export const amplifyConfig = {
-  // Remove Auth configuration to prevent the error
   Storage: {
-    AWSS3: {
-      bucket: awsConfig.s3.bucket,
-      region: awsConfig.region
-    }
+    region: awsConfig.region,
+    bucket: awsConfig.s3.bucket,
+    identityPoolId: process.env.REACT_APP_IDENTITY_POOL_ID || '' // This is required for S3 access
   },
   API: {
-    REST: {
-      SubmissionAPI: {
-        endpoint: awsConfig.api.invokeUrl
+    endpoints: [
+      {
+        name: "SubmissionAPI",
+        endpoint: awsConfig.api.invokeUrl,
+        custom_header: async () => {
+          return {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*' // Request CORS headers
+          };
+        }
       }
-    }
+    ]
   }
 };
