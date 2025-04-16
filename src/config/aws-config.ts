@@ -7,7 +7,7 @@ export const awsConfig = {
     bucket: process.env.REACT_APP_S3_BUCKET || 'partner-competency-self-assessment-files',
   },
   api: {
-    invokeUrl: process.env.REACT_APP_API_GATEWAY_URL || 'https://z6f6rbexq4.execute-api.us-east-1.amazonaws.com/default',
+    invokeUrl: process.env.REACT_APP_API_GATEWAY_URL || 'https://j3rjmmfkh6.execute-api.us-east-1.amazonaws.com/default',
   },
   dynamoDb: {
     tableName: process.env.REACT_APP_DYNAMODB_TABLE || 'submissions-table',
