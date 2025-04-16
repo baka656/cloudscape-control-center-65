@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileUp, AlertCircle, X } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { createBucketAndUploadFiles, saveSubmissionToDynamoDB, invokeSubmissionProcessing } from "@/services/aws-service";
 
 interface NewSubmissionModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export interface SubmissionFormData {
   partnerName: string;
   salesforceId: string;
   validationType: string;
+  competencyCategory?: string;
   selfAssessment: File | null;
   additionalFiles: File[];
 }
@@ -27,19 +29,34 @@ export function NewSubmissionModal({ isOpen, onClose, onSubmit }: NewSubmissionM
   const [partnerName, setPartnerName] = useState("");
   const [salesforceId, setSalesforceId] = useState("");
   const [validationType, setValidationType] = useState("");
+  const [competencyCategory, setCompetencyCategory] = useState("");
   const [selfAssessment, setSelfAssessment] = useState<File | null>(null);
   const [additionalFiles, setAdditionalFiles] = useState<File[]>([]);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const validationTypes = ["FTR", "SDP", "Gen AI Competency"];
+  
+  const competencyCategories = [
+    "Generative AI applications: Horizontal applications",
+    "Generative AI applications: Vertical-specific applications",
+    "Foundation Models (FMs) and Application Development: Foundation Models",
+    "Foundation Models (FMs) and Application Development: FMOPs Tools and Platforms",
+    "Foundation Models (FMs) and Application Development: FM-based app development tools and platforms",
+    "Infrastructure and Data: Purpose-built AI Hardware",
+    "Infrastructure and Data: Data tools and Platforms: Vector Databases",
+    "Infrastructure and Data: Data tools and Platforms: Synthetic Data Generation"
+  ];
 
   const resetForm = () => {
     setPartnerName("");
     setSalesforceId("");
     setValidationType("");
+    setCompetencyCategory("");
     setSelfAssessment(null);
     setAdditionalFiles([]);
     setFormErrors({});
+    setIsSubmitting(false);
   };
 
   const handleClose = () => {
@@ -62,6 +79,10 @@ export function NewSubmissionModal({ isOpen, onClose, onSubmit }: NewSubmissionM
       errors.validationType = "Validation type is required";
     }
     
+    if (validationType === "Gen AI Competency" && !competencyCategory) {
+      errors.competencyCategory = "Competency category is required for Gen AI Competency";
+    }
+    
     if (!selfAssessment) {
       errors.selfAssessment = "Self-assessment file is required";
     }
@@ -70,18 +91,33 @@ export function NewSubmissionModal({ isOpen, onClose, onSubmit }: NewSubmissionM
     return Object.keys(errors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (validateForm()) {
-      onSubmit({
-        partnerName,
-        salesforceId,
-        validationType,
-        selfAssessment,
-        additionalFiles
-      });
-      handleClose();
+      setIsSubmitting(true);
+      
+      try {
+        // Call AWS services here to create bucket and upload files
+        // This will be replaced with actual implementation
+        if (selfAssessment) {
+          // Process the submission with AWS services
+          onSubmit({
+            partnerName,
+            salesforceId,
+            validationType,
+            competencyCategory: validationType === "Gen AI Competency" ? competencyCategory : undefined,
+            selfAssessment,
+            additionalFiles
+          });
+        }
+      } catch (error) {
+        console.error("Error submitting form:", error);
+        // Handle error
+      } finally {
+        setIsSubmitting(false);
+        handleClose();
+      }
     }
   };
 
@@ -165,7 +201,13 @@ export function NewSubmissionModal({ isOpen, onClose, onSubmit }: NewSubmissionM
               <div className="col-span-3">
                 <Select
                   value={validationType}
-                  onValueChange={setValidationType}
+                  onValueChange={(value) => {
+                    setValidationType(value);
+                    // Reset competency category if not Gen AI Competency
+                    if (value !== "Gen AI Competency") {
+                      setCompetencyCategory("");
+                    }
+                  }}
                 >
                   <SelectTrigger id="validationType" className={formErrors.validationType ? "border-destructive" : ""}>
                     <SelectValue placeholder="Select validation type" />
@@ -183,6 +225,38 @@ export function NewSubmissionModal({ isOpen, onClose, onSubmit }: NewSubmissionM
                 )}
               </div>
             </div>
+            
+            {validationType === "Gen AI Competency" && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="competencyCategory" className="text-right">
+                  Competency Category
+                  <span className="text-destructive ml-1">*</span>
+                </Label>
+                <div className="col-span-3">
+                  <Select
+                    value={competencyCategory}
+                    onValueChange={setCompetencyCategory}
+                  >
+                    <SelectTrigger 
+                      id="competencyCategory" 
+                      className={formErrors.competencyCategory ? "border-destructive" : ""}
+                    >
+                      <SelectValue placeholder="Select competency category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {competencyCategories.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {formErrors.competencyCategory && (
+                    <p className="text-destructive text-xs mt-1">{formErrors.competencyCategory}</p>
+                  )}
+                </div>
+              </div>
+            )}
             
             <div className="grid grid-cols-4 items-start gap-4">
               <Label htmlFor="selfAssessment" className="text-right pt-2">
@@ -284,11 +358,11 @@ export function NewSubmissionModal({ isOpen, onClose, onSubmit }: NewSubmissionM
           </Alert>
 
           <DialogFooter className="mt-4">
-            <Button type="button" variant="outline" onClick={handleClose}>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-primary">
-              Submit Application
+            <Button type="submit" className="bg-primary" disabled={isSubmitting}>
+              {isSubmitting ? "Processing..." : "Submit Application"}
             </Button>
           </DialogFooter>
         </form>
