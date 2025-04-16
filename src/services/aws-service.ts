@@ -1,5 +1,5 @@
 
-import { API, Storage } from 'aws-amplify';
+import { Amplify } from 'aws-amplify';
 import { v4 as uuidv4 } from 'uuid';
 import { awsConfig } from '../config/aws-config';
 
@@ -33,7 +33,9 @@ export const createBucketAndUploadFiles = async (
   try {
     const bucketName = `partner-submissions-${salesforceId.toLowerCase()}`;
     
-    // In a production environment with AWS Amplify, we'd use:
+    // Import Storage dynamically to ensure it's available at runtime
+    const { Storage } = await import('aws-amplify');
+    
     // Upload self-assessment file
     const selfAssessmentKey = `self-assessment/${Date.now()}-${selfAssessment.name}`;
     await Storage.put(selfAssessmentKey, selfAssessment, {
@@ -93,19 +95,31 @@ export const saveSubmissionToDynamoDB = async (submissionData: SubmissionRecord)
 // Invoke Lambda function through API Gateway
 export const invokeSubmissionProcessing = async (submissionData: SubmissionRecord) => {
   try {
-    const response = await fetch(`${awsConfig.api.invokeUrl}/process`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(submissionData)
-    });
+    const { API } = await import('aws-amplify');
     
-    if (!response.ok) {
-      throw new Error(`API request failed with status ${response.status}`);
+    try {
+      // Try using Amplify API
+      const result = await API.post('SubmissionAPI', '/process', {
+        body: submissionData
+      });
+      return result;
+    } catch (amplifyError) {
+      console.error("Error with Amplify API, falling back to fetch:", amplifyError);
+      // Fallback to fetch if Amplify API fails
+      const response = await fetch(`${awsConfig.api.invokeUrl}/process`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(submissionData)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`);
+      }
+      
+      return await response.json();
     }
-    
-    return await response.json();
   } catch (error) {
     console.error("Error invoking Lambda function:", error);
     throw new Error('Failed to start submission processing');

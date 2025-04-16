@@ -14,25 +14,24 @@ export const awsConfig = {
   }
 };
 
-// Amplify configuration
+// Updated Amplify configuration with correct types
 export const amplifyConfig = {
   Auth: {
-    // You will need to set this up in your Amplify project
-    // identityPoolId: 'your-identity-pool-id',
+    // Using Cognito Identity is optional but helpful for S3/API permissions
+    identityPoolId: process.env.REACT_APP_IDENTITY_POOL_ID || 'us-east-1:1234abcd-1234-5678-abcd-1234567890ab',
     region: awsConfig.region
-  },
-  API: {
-    endpoints: [
-      {
-        name: 'SubmissionAPI',
-        endpoint: awsConfig.api.invokeUrl
-      }
-    ]
   },
   Storage: {
     AWSS3: {
       bucket: awsConfig.s3.bucket,
       region: awsConfig.region
+    }
+  },
+  API: {
+    REST: {
+      SubmissionAPI: {
+        endpoint: awsConfig.api.invokeUrl
+      }
     }
   }
 };
