@@ -4,10 +4,10 @@ export const awsConfig = {
   region: process.env.REACT_APP_AWS_REGION || 'us-east-1',
   // These values will be replaced by environment variables in AWS Amplify
   s3: {
-    bucket: process.env.REACT_APP_S3_BUCKET || 'default-bucket',
+    bucket: process.env.REACT_APP_S3_BUCKET || 'partner-competency-self-assessment-files',
   },
   api: {
-    invokeUrl: process.env.REACT_APP_API_GATEWAY_URL || 'https://example.execute-api.region.amazonaws.com/stage',
+    invokeUrl: process.env.REACT_APP_API_GATEWAY_URL || 'https://z6f6rbexq4.execute-api.us-east-1.amazonaws.com/default',
   },
   dynamoDb: {
     tableName: process.env.REACT_APP_DYNAMODB_TABLE || 'submissions-table',
