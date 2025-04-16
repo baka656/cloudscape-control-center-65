@@ -1,5 +1,4 @@
 
-import { Amplify } from 'aws-amplify';
 import { v4 as uuidv4 } from 'uuid';
 import { awsConfig } from '../config/aws-config';
 
@@ -34,7 +33,7 @@ export const createBucketAndUploadFiles = async (
     const bucketName = `partner-submissions-${salesforceId.toLowerCase()}`;
     
     // Import Storage dynamically to ensure it's available at runtime
-    const { Storage } = await import('aws-amplify');
+    const { Storage } = await import('@aws-amplify/storage');
     
     // Upload self-assessment file
     const selfAssessmentKey = `self-assessment/${Date.now()}-${selfAssessment.name}`;
@@ -95,11 +94,12 @@ export const saveSubmissionToDynamoDB = async (submissionData: SubmissionRecord)
 // Invoke Lambda function through API Gateway
 export const invokeSubmissionProcessing = async (submissionData: SubmissionRecord) => {
   try {
-    const { API } = await import('aws-amplify');
+    // Import API dynamically
+    const { post } = await import('@aws-amplify/api');
     
     try {
       // Try using Amplify API
-      const result = await API.post('SubmissionAPI', '/process', {
+      const result = await post('SubmissionAPI', '/process', {
         body: submissionData
       });
       return result;

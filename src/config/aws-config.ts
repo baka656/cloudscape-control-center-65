@@ -16,11 +16,7 @@ export const awsConfig = {
 
 // Updated Amplify configuration with correct types
 export const amplifyConfig = {
-  Auth: {
-    // Using Cognito Identity is optional but helpful for S3/API permissions
-    identityPoolId: process.env.REACT_APP_IDENTITY_POOL_ID || 'us-east-1:1234abcd-1234-5678-abcd-1234567890ab',
-    region: awsConfig.region
-  },
+  // Remove Auth configuration to prevent the error
   Storage: {
     AWSS3: {
       bucket: awsConfig.s3.bucket,

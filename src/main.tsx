@@ -17,7 +17,9 @@ window.process = {
   stdin: null,
   argv: [],
   version: '',
-  versions: {},
+  versions: {
+    node: '16.0.0' // Add a fake node version
+  },
   nextTick: (cb: Function) => setTimeout(cb, 0)
 };
 
