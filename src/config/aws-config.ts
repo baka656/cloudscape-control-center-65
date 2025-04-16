@@ -13,3 +13,26 @@ export const awsConfig = {
     tableName: process.env.REACT_APP_DYNAMODB_TABLE || 'submissions-table',
   }
 };
+
+// Amplify configuration
+export const amplifyConfig = {
+  Auth: {
+    // You will need to set this up in your Amplify project
+    // identityPoolId: 'your-identity-pool-id',
+    region: awsConfig.region
+  },
+  API: {
+    endpoints: [
+      {
+        name: 'SubmissionAPI',
+        endpoint: awsConfig.api.invokeUrl
+      }
+    ]
+  },
+  Storage: {
+    AWSS3: {
+      bucket: awsConfig.s3.bucket,
+      region: awsConfig.region
+    }
+  }
+};

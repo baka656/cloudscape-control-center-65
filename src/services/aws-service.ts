@@ -1,16 +1,9 @@
 
-import AWS from 'aws-sdk';
+import { API, Storage } from 'aws-amplify';
+import { v4 as uuidv4 } from 'uuid';
 import { awsConfig } from '../config/aws-config';
 
-// Configure AWS
-AWS.config.update({
-  region: awsConfig.region,
-});
-
-// Initialize services
-const s3 = new AWS.S3();
-const dynamoDB = new AWS.DynamoDB.DocumentClient();
-
+// Export interfaces for TypeScript typing
 export interface ControlAssessment {
   controlId: string;
   status: 'pass' | 'fail' | 'pending';
@@ -31,49 +24,35 @@ export interface SubmissionRecord {
   controls?: ControlAssessment[];
 }
 
-// Create S3 bucket and upload files
+// Upload files to S3 bucket
 export const createBucketAndUploadFiles = async (
   salesforceId: string,
   selfAssessment: File,
   additionalFiles: File[]
 ) => {
   try {
-    // In a real implementation, we would check if bucket exists first
-    // For demo purposes, we'll assume the bucket doesn't exist
     const bucketName = `partner-submissions-${salesforceId.toLowerCase()}`;
     
-    // Create bucket (this would typically be done once)
-    // Note: In a real implementation, this might be handled by a backend service
-    try {
-      await s3.createBucket({ 
-        Bucket: bucketName,
-        ACL: 'private'
-      }).promise();
-      console.log(`Created bucket: ${bucketName}`);
-    } catch (error) {
-      // Bucket might already exist
-      console.log("Bucket may already exist or requires specific permissions");
-    }
-
+    // In a production environment with AWS Amplify, we'd use:
     // Upload self-assessment file
     const selfAssessmentKey = `self-assessment/${Date.now()}-${selfAssessment.name}`;
-    await s3.upload({
-      Bucket: bucketName,
-      Key: selfAssessmentKey,
-      Body: selfAssessment,
-      ContentType: selfAssessment.type
-    }).promise();
+    await Storage.put(selfAssessmentKey, selfAssessment, {
+      contentType: selfAssessment.type,
+      customPrefix: {
+        public: ''
+      }
+    });
 
     // Upload additional files
     const additionalFilesKeys = [];
     for (const file of additionalFiles) {
       const fileKey = `additional-docs/${Date.now()}-${file.name}`;
-      await s3.upload({
-        Bucket: bucketName,
-        Key: fileKey,
-        Body: file,
-        ContentType: file.type
-      }).promise();
+      await Storage.put(fileKey, file, {
+        contentType: file.type,
+        customPrefix: {
+          public: ''
+        }
+      });
       additionalFilesKeys.push(fileKey);
     }
 
@@ -88,14 +67,22 @@ export const createBucketAndUploadFiles = async (
   }
 };
 
-// Save submission to DynamoDB
+// Save submission to DynamoDB using API Gateway as a proxy
 export const saveSubmissionToDynamoDB = async (submissionData: SubmissionRecord) => {
   try {
-    await dynamoDB.put({
-      TableName: awsConfig.dynamoDb.tableName,
-      Item: submissionData
-    }).promise();
+    // For demonstration purposes, we'll use the REST API endpoint
+    // In production, this would be properly configured with API Gateway
+    const response = await fetch(`${awsConfig.api.invokeUrl}/submissions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(submissionData)
+    });
     
+    if (!response.ok) {
+      throw new Error('Failed to save to DynamoDB');
+    }
+    
+    const result = await response.json();
     return { success: true, id: submissionData.id };
   } catch (error) {
     console.error("Error saving to DynamoDB:", error);
@@ -106,7 +93,7 @@ export const saveSubmissionToDynamoDB = async (submissionData: SubmissionRecord)
 // Invoke Lambda function through API Gateway
 export const invokeSubmissionProcessing = async (submissionData: SubmissionRecord) => {
   try {
-    const response = await fetch(awsConfig.api.invokeUrl, {
+    const response = await fetch(`${awsConfig.api.invokeUrl}/process`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -125,29 +112,32 @@ export const invokeSubmissionProcessing = async (submissionData: SubmissionRecor
   }
 };
 
-// Get submission details from DynamoDB
+// Get submission details from DynamoDB via API Gateway
 export const getSubmissionDetails = async (submissionId: string): Promise<SubmissionRecord | null> => {
   try {
-    const result = await dynamoDB.get({
-      TableName: awsConfig.dynamoDb.tableName,
-      Key: { id: submissionId }
-    }).promise();
+    const response = await fetch(`${awsConfig.api.invokeUrl}/submissions/${submissionId}`);
     
-    return result.Item as SubmissionRecord || null;
+    if (!response.ok) {
+      throw new Error('Failed to fetch submission details');
+    }
+    
+    return await response.json();
   } catch (error) {
     console.error("Error fetching submission details:", error);
     throw new Error('Failed to fetch submission details');
   }
 };
 
-// Get all submissions
+// Get all submissions via API Gateway
 export const getAllSubmissions = async (): Promise<SubmissionRecord[]> => {
   try {
-    const result = await dynamoDB.scan({
-      TableName: awsConfig.dynamoDb.tableName
-    }).promise();
+    const response = await fetch(`${awsConfig.api.invokeUrl}/submissions`);
     
-    return result.Items as SubmissionRecord[] || [];
+    if (!response.ok) {
+      throw new Error('Failed to fetch submissions');
+    }
+    
+    return await response.json();
   } catch (error) {
     console.error("Error fetching submissions:", error);
     throw new Error('Failed to fetch submissions');

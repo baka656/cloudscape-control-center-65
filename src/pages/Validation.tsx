@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,8 +12,6 @@ import {
 } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { getSubmissionDetails, SubmissionRecord, ControlAssessment } from "@/services/aws-service";
 
@@ -99,7 +96,7 @@ export default function Validation() {
         if (control.controlId === controlId) {
           return {
             ...control,
-            status: action === 'approve' ? 'pass' : 'fail'
+            status: action === 'approve' ? 'pass' : 'fail' as 'pass' | 'fail'
           };
         }
         return control;
