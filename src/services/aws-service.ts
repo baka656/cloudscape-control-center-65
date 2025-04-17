@@ -7,11 +7,12 @@ import { get, post } from 'aws-amplify/api';
 
 // Export interfaces for TypeScript typing
 export interface ControlAssessment {
-  controlId: string;
-  controlStatus: 'pass' | 'fail' | 'pending';
-  confidenceScore: number;
-  notes: string;
-  aiAnalysis?: string;
+  ControlID: string;
+  ControlTitle: string;
+  ControlStatus: string;
+  ConfidenceScore: number;
+  ControlPassFail: 'pass' | 'fail' | 'pending';
+  ControlPassFailReason: string;
 }
 
 export interface SubmissionRecord {
@@ -23,6 +24,57 @@ export interface SubmissionRecord {
   submittedAt: string;
   controls?: ControlAssessment[];
 }
+
+
+export interface SubmissionWithValidation extends SubmissionRecord {
+  validationOutput?: ControlAssessment[];
+  averageConfidenceScore?: number;
+  controlsNeedingVerification?: ControlAssessment[];
+}
+
+export const getValidationOutput = async (submissionId: string): Promise<ControlAssessment[]> => {
+  try {
+    const response = await fetch(
+      `https://partner-competency-self-assessment-files.s3.amazonaws.com/${submissionId}/${submissionId}_validation_output.json`
+    );
+    if (!response.ok) {
+      throw new Error('Validation output not found');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching validation output:', error);
+    return [];
+  }
+};
+
+
+export const updateSubmissionStatus = async (
+  submissionId: string, 
+  status: string,
+  controlUpdates?: { controlId: string; status: 'pass' | 'fail'; notes: string }[]
+) => {
+  try {
+    const response = await fetch(`https://swiozvzqs6.execute-api.us-east-1.amazonaws.com/prod/submissions/${submissionId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        status,
+        controlUpdates
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update submission status');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error updating submission:', error);
+    throw error;
+  }
+};
 
 // Upload files to S3 bucket
 export const createBucketAndUploadFiles = async (
@@ -101,9 +153,10 @@ export const invokeSubmissionProcessing = async (submissionData: SubmissionRecor
       },
       body: JSON.stringify(submissionData)
     });
-    
-    console.log("Sent the submission to lambda", response)
-    return { success: true, response };
+    const data = await response.json();
+    console.log("Sent the submission to lambda", data)
+    console.log("Sent the submission to lambda body", data.body)
+    return { success: true, data };
   } catch (error) {
     console.error("Error invoking Lambda function:", error);
   }
