@@ -38,7 +38,7 @@ export const getValidationOutput = async (submissionId: string): Promise<Control
     console.log('Fetching validation output for:', submissionId);
     
     const downloadResult = await downloadData({
-      path: `partner-competency-self-assessment-files/${submissionId}/${submissionId}_validation_output.json`,
+      path: `${submissionId}/${submissionId}_validation_output.json`,
       options: {
         accessLevel: 'guest'
       }
