@@ -266,6 +266,8 @@ export default function Submissions() {
                               size="icon"
                               className="mr-2"
                               onClick={() => handleViewValidation(submission.id)}>
+
+                              <ExternalLink className="h-4 w-4" />
                               </Button>
                         )}
                           
