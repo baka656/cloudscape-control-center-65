@@ -79,11 +79,17 @@ export const saveSubmissionToDynamoDB = async (submissionData: SubmissionRecord)
       },
       body: JSON.stringify(submissionData)
     });
-    console.log("Submission saved in dynamodb", response)
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log("Submission saved in DynamoDB", result);
     
-    return { success: true, id: submissionData.id, response };
-  } catch (apiError) {
-    console.error("Error with Amplify API, falling back to fetch:", apiError);
+    return { success: true, id: submissionData.id, response: result };
+  } catch (error) {
+    console.error("Error saving to DynamoDB:", error);
+    throw error;
   }
 };
 
@@ -143,6 +149,8 @@ export const getAllSubmissions = async (): Promise<SubmissionRecord[]> => {
     
     // Check if response.body is an array
     const submissions = response.body;
+
+    console.log("All Submissions retrieved from dynamodb", submissions)
     if (Array.isArray(submissions)) {
       console.log("All Submissions retrieved from dynamodb", submissions)
       return submissions as SubmissionRecord[];
