@@ -5,6 +5,7 @@ import { fetchAuthSession } from 'aws-amplify/auth';
 import { uploadData, getUrl } from 'aws-amplify/storage';
 import { get, post } from 'aws-amplify/api';
 import { GetUrlInput } from 'aws-amplify/storage';
+import { downloadData } from 'aws-amplify/storage';
 // Export interfaces for TypeScript typing
 export interface ControlAssessment {
   ControlID: string;
@@ -36,29 +37,15 @@ export const getValidationOutput = async (submissionId: string): Promise<Control
   try {
     console.log('Fetching validation output for:', submissionId);
     
-    // Get the validation output JSON file
-    const validationFileInput: GetUrlInput = {
-      key: `${submissionId}/${submissionId}_validation_output.json`,
+    const downloadResult = await downloadData({
+      path: `${submissionId}/${submissionId}_validation_output.json`,
       options: {
-        accessLevel: 'guest',
-        validateObjectExistence: true
+        accessLevel: 'guest'
       }
-    };
+    }).result;
 
-    const validationFileResult = await getUrl(validationFileInput);
-    
-    if (!validationFileResult.url) {
-      throw new Error('Validation output file not found');
-    }
-
-    const response = await fetch(validationFileResult.url);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch validation output: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    return data as ControlAssessment[];
-
+    const jsonData = await downloadResult.body.json();
+    return jsonData as ControlAssessment[];
   } catch (error) {
     console.error('Error fetching validation output:', error);
     throw error;
