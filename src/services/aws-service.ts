@@ -148,16 +148,16 @@ export const getAllSubmissions = async (): Promise<SubmissionRecord[]> => {
     });
     
     // Check if response.body is an array
-    const submissions = response.body;
-
-    console.log("All Submissions retrieved from dynamodb", submissions)
-    if (Array.isArray(submissions)) {
-      console.log("All Submissions retrieved from dynamodb", submissions)
-      return submissions as SubmissionRecord[];
-    } else {
-      console.warn('API returned non-array response:', submissions);
-      return [];
-    }
+    const submissions = await response.json();
+    console.log('Submissions data:', submissions);
+    return submissions.Items || [];
+    // if (Array.isArray(submissions)) {
+    //   console.log("All Submissions retrieved from dynamodb", submissions)
+    //   return submissions as SubmissionRecord[];
+    // } else {
+    //   console.warn('API returned non-array response:', submissions);
+    //   return [];
+    //}
   } catch (error) {
     console.error("Error fetching submissions:", error);
     return [];

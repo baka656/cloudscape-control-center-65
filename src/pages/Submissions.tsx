@@ -51,6 +51,7 @@ export default function Submissions() {
     try {
       setIsLoading(true);
       const fetchedSubmissions = await getAllSubmissions();
+      console.log("Fetched submissions:", fetchedSubmissions);
       setSubmissions(fetchedSubmissions);
     } catch (error) {
       console.error("Error fetching submissions:", error);
@@ -107,7 +108,7 @@ export default function Submissions() {
       await saveSubmissionToDynamoDB(submissionRecord);
       
       // Invoke Lambda function through API Gateway
-      //await invokeSubmissionProcessing(submissionRecord);
+      await invokeSubmissionProcessing(submissionRecord);
       
       // Update local state with new submission
       setSubmissions(prev => [submissionRecord, ...prev]);
