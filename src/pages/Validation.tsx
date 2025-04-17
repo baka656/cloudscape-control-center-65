@@ -33,10 +33,22 @@ interface ControlCardProps {
   control: ControlAssessment;
   onVerify: (action: 'pass' | 'fail', notes: string) => void;
   disabled?: boolean;
+  showStatus?: boolean;
 }
 
-const ControlCard: React.FC<ControlCardProps> = ({ control, onVerify, disabled }) => {
-  const [notes, setNotes] = useState('');
+
+const ControlCard: React.FC<ControlCardProps> = ({ control, onVerify, disabled, showStatus = true }) => {
+  const [notes, setNotes] = useState(control.ControlPassFailReason || '');
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  const handleVerification = async (action: 'pass' | 'fail') => {
+    setIsVerifying(true);
+    try {
+      await onVerify(action, notes);
+    } finally {
+      setIsVerifying(false);
+    }
+  };
 
   return (
     <div className="border rounded-md p-4 mt-4">
@@ -48,29 +60,33 @@ const ControlCard: React.FC<ControlCardProps> = ({ control, onVerify, disabled }
           <p className="text-sm text-muted-foreground">
             Confidence Score: {(control.ConfidenceScore * 100).toFixed(1)}%
           </p>
-          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-            control.ControlPassFail === 'pass' 
-              ? 'bg-green-100 text-green-800' 
-              : control.ControlPassFail === 'fail'
-              ? 'bg-red-100 text-red-800'
-              : 'bg-yellow-100 text-yellow-800'
-          }`}>
-            {control.ControlPassFail.toUpperCase()}
-          </span>
+          {showStatus && (
+            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium mt-1 ${
+              control.ControlPassFail === 'pass'
+                ? 'bg-green-100 text-green-800'
+                : control.ControlPassFail === 'fail'
+                ? 'bg-red-100 text-red-800'
+                : 'bg-yellow-100 text-yellow-800'
+            }`}>
+              {control.ControlPassFail.toUpperCase()}
+            </span>
+          )}
         </div>
-        {!disabled && (
+        {!disabled && control.ControlPassFail === 'pending' && (
           <div className="flex space-x-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => onVerify('fail', notes)}
+              onClick={() => handleVerification('fail')}
+              disabled={isVerifying}
             >
               <ThumbsDown className="h-4 w-4 mr-1" />
               Reject
             </Button>
             <Button
               size="sm"
-              onClick={() => onVerify('pass', notes)}
+              onClick={() => handleVerification('pass')}
+              disabled={isVerifying}
             >
               <ThumbsUp className="h-4 w-4 mr-1" />
               Approve
@@ -84,7 +100,7 @@ const ControlCard: React.FC<ControlCardProps> = ({ control, onVerify, disabled }
           {control.ControlPassFailReason}
         </p>
       </div>
-      {!disabled && (
+      {!disabled && control.ControlPassFail === 'pending' && (
         <div className="mt-2">
           <h5 className="text-sm font-medium mb-1">Verification Notes</h5>
           <Textarea
@@ -92,6 +108,7 @@ const ControlCard: React.FC<ControlCardProps> = ({ control, onVerify, disabled }
             className="min-h-[100px]"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
+            disabled={isVerifying}
           />
         </div>
       )}
@@ -103,6 +120,7 @@ export default function Validation() {
   const [submissions, setSubmissions] = useState<SubmissionWithValidation[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [verificationProgress, setVerificationProgress] = useState<Record<string, number>>({});
   const { toast } = useToast();
 
   // Filter submissions based on search term
@@ -119,7 +137,7 @@ export default function Validation() {
   const completed = filteredSubmissions.filter(s => 
     ['Approved', 'Rejected'].includes(s.applicationStatus)
   );
-  // ... continuing from previous code
+
 
   // Fetch submissions and their validation outputs
   const fetchSubmissionsWithValidation = async () => {
@@ -211,14 +229,36 @@ export default function Validation() {
             return control;
           });
 
-          return {
-            ...sub,
-            validationOutput: updatedValidationOutput,
-            controlsNeedingVerification: sub.controlsNeedingVerification?.filter(
-              c => c.ControlID !== controlId
-            )
-          };
+          // Calculate new verification progress
+        const totalControls = updatedValidationOutput.length;
+        const verifiedControls = updatedValidationOutput.filter(
+          c => c.ControlPassFail === 'pass' || c.ControlPassFail === 'fail'
+        ).length;
+        const progress = (verifiedControls / totalControls) * 100;
+
+        setVerificationProgress(prev => ({
+          ...prev,
+          [submissionId]: progress
+        }));
+
+        // Update application status based on verification progress
+        let newStatus = sub.applicationStatus;
+        if (verifiedControls === totalControls) {
+          const allPassed = updatedValidationOutput.every(c => c.ControlPassFail === 'pass');
+          newStatus = allPassed ? 'Approved' : 'Rejected';
+        } else if (verifiedControls > 0) {
+          newStatus = 'Human Validation';
         }
+
+        return {
+          ...sub,
+          applicationStatus: newStatus,
+          validationOutput: updatedValidationOutput,
+          controlsNeedingVerification: updatedValidationOutput.filter(
+            c => c.ControlPassFail === 'pending' || c.ConfidenceScore < 0.8
+          )
+        };
+      }
         return sub;
       }));
 
@@ -232,7 +272,7 @@ export default function Validation() {
       toast({
         title: 'Control Updated',
         description: `Control ${controlId} has been ${action === 'pass' ? 'approved' : 'rejected'}.`,
-        variant: 'default',
+        variant: 'success',
       });
     } catch (error) {
       console.error('Error updating control:', error);
@@ -250,6 +290,24 @@ export default function Validation() {
     status: SubmissionRecord['applicationStatus']
   ) => {
     try {
+      const submission = submissions.find(s => s.id === submissionId);
+      if (!submission) return;
+
+      // Check if all controls are verified before allowing approval
+      if (status === 'Approved') {
+        const unverifiedControls = submission.validationOutput?.filter(
+          c => c.ControlPassFail === 'pending'
+        );
+        
+        if (unverifiedControls && unverifiedControls.length > 0) {
+          toast({
+            title: 'Cannot Approve',
+            description: 'All controls must be verified before approving the submission.',
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
       await updateSubmissionStatus(submissionId, status);
       
       setSubmissions(prev => prev.map(sub => 
@@ -259,7 +317,7 @@ export default function Validation() {
       toast({
         title: 'Status Updated',
         description: `Submission has been ${status.toLowerCase()}.`,
-        variant: 'default',
+        variant: 'success',
       });
     } catch (error) {
       console.error('Error updating submission status:', error);
@@ -307,7 +365,6 @@ export default function Validation() {
           {loading ? 'Refreshing...' : 'Refresh'}
         </Button>
       </div>
-      // ... continuing from previous code
 
       <Tabs defaultValue="current" className="space-y-4">
         <TabsList>
@@ -455,15 +512,12 @@ export default function Validation() {
                         <div className="text-right">
                           <p className="text-sm font-medium">Verification Progress</p>
                           <Progress 
-                            value={
-                              submission.validationOutput 
-                                ? ((submission.validationOutput.length - 
-                                    (submission.controlsNeedingVerification?.length || 0)) / 
-                                   submission.validationOutput.length) * 100
-                                : 0
-                            } 
+                            value={verificationProgress[submission.id] || 0} 
                             className="w-[200px] mt-2"
                           />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {submission.controlsNeedingVerification?.length || 0} controls remaining
+                          </p>
                         </div>
                       </div>
 

@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Search, Plus, ExternalLink, MoreHorizontal } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { generateValidationPDF } from '@/pages/pdf';
+import { getValidationOutput } from '@/services/aws-service';
 import {
   Table,
   TableBody,
@@ -28,6 +30,7 @@ import {
   getAllSubmissions,
   SubmissionRecord 
 } from "@/services/aws-service";
+
 
 // Status colors for UI
 const statusColors = {
@@ -81,6 +84,21 @@ export default function Submissions() {
     sub.partnerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     sub.validationType?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleViewValidation = async (submissionId: string) => {
+    try {
+      const validationOutput = await getValidationOutput(submissionId);
+      const pdf = generateValidationPDF(submissionId, validationOutput);
+      pdf.save(`validation-${submissionId}.pdf`);
+    } catch (error) {
+      console.error('Error generating validation PDF:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to generate validation report.',
+        variant: 'destructive',
+      });
+    }
+  };
   
   const handleNewSubmission = async (data: SubmissionFormData) => {
     try {
@@ -117,7 +135,7 @@ export default function Submissions() {
       toast({
         title: "Submission Created",
         description: `Application ${data.salesforceId} has been created successfully.`,
-        variant: "default",
+        variant: "success",
       });
     } catch (error) {
       console.error("Error creating submission:", error);
@@ -213,9 +231,15 @@ export default function Submissions() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end">
-                          <Button variant="ghost" size="icon" className="mr-2">
-                            <ExternalLink className="h-4 w-4" />
-                          </Button>
+                        {submission.applicationStatus === 'AI Validation' && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="mr-2"
+                              onClick={() => handleViewValidation(submission.id)}>
+                              </Button>
+                        )}
+                          
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon">

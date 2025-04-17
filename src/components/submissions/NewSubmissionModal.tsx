@@ -35,7 +35,7 @@ export function NewSubmissionModal({ isOpen, onClose, onSubmit }: NewSubmissionM
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const validationTypes = ["FTR", "SDP", "Gen AI Competency"];
+  const validationTypes = ["Gen AI Competency"];
   
   const competencyCategories = [
     "Generative AI applications: Horizontal applications",
