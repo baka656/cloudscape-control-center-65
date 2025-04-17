@@ -7,7 +7,7 @@ export const awsConfig = {
     bucket: process.env.REACT_APP_S3_BUCKET || 'partner-competency-self-assessment-files',
   },
   api: {
-    invokeUrl: process.env.REACT_APP_API_GATEWAY_URL || 'https://j3rjmmfkh6.execute-api.us-east-1.amazonaws.com/default',
+    invokeUrl: process.env.REACT_APP_API_GATEWAY_URL || 'https://swiozvzqs6.execute-api.us-east-1.amazonaws.com/prod/submissions',
   },
   dynamoDb: {
     tableName: process.env.REACT_APP_DYNAMODB_TABLE || 'submissions-table',
@@ -18,7 +18,7 @@ export const awsConfig = {
 export const amplifyConfig = {
   Auth: {
     Cognito: {
-      identityPoolId: process.env.REACT_APP_IDENTITY_POOL_ID || '',
+      identityPoolId: process.env.REACT_APP_IDENTITY_POOL_ID || 'us-east-1:c269a361-7c13-4f7b-9f41-8b7f78db1281',
       allowGuestAccess: true,
       region: awsConfig.region,
     }
