@@ -107,7 +107,7 @@ export default function Submissions() {
       await saveSubmissionToDynamoDB(submissionRecord);
       
       // Invoke Lambda function through API Gateway
-      await invokeSubmissionProcessing(submissionRecord);
+      //await invokeSubmissionProcessing(submissionRecord);
       
       // Update local state with new submission
       setSubmissions(prev => [submissionRecord, ...prev]);
