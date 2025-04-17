@@ -49,6 +49,7 @@ export const getValidationOutput = async (submissionId: string): Promise<Control
       .replace(/```json\n/, '')  // Remove opening ```json
       .replace(/```$/, '')       // Remove closing ```
       .trim();   
+    console.log('Cleaned text content:', cleanedContent)
     try {
       const jsonData = JSON.parse(cleanedContent);
       return jsonData as ControlAssessment[];

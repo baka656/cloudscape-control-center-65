@@ -54,16 +54,17 @@ export default function Validation() {
           try {
             const validationOutput = await getValidationOutput(submission.id);
             
+            console.log("Validation output of ", submission.id, validationOutput)
             // Calculate average confidence score
             const averageConfidenceScore = validationOutput.length > 0
               ? validationOutput.reduce((sum, control) => sum + control.ConfidenceScore, 0) / validationOutput.length
               : 0;
-            
+            console.log("Average confidence score of ", submission.id, averageConfidenceScore)
             // Filter controls needing verification (confidence < 80%)
             const controlsNeedingVerification = validationOutput.filter(
               control => control.ConfidenceScore < 80
             );
-            
+            console.log("Controls needing verification of ", submission.id, controlsNeedingVerification)
             return {
               ...submission,
               validationOutput,
