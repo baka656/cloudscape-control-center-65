@@ -52,19 +52,51 @@ export default function Validation() {
       const submissionsWithValidation = await Promise.all(
         allSubmissions.map(async (submission) => {
           try {
+            // Only try to fetch validation if status is appropriate
+            if (!['AI Validation', 'Human Validation'].includes(submission.applicationStatus)) {
+              return {
+                ...submission,
+                validationOutput: [],
+                averageConfidenceScore: 0,
+                controlsNeedingVerification: []
+              };
+            }
+  
             const validationOutput = await getValidationOutput(submission.id);
             
-            console.log("Validation output of ", submission.id, validationOutput)
+            // If no validation output, return submission with empty values
+            if (!validationOutput || !Array.isArray(validationOutput)) {
+              console.log(`No validation output for ${submission.id}`);
+              return {
+                ...submission,
+                validationOutput: [],
+                averageConfidenceScore: 0,
+                controlsNeedingVerification: []
+              };
+            }
+            
+            console.log("Validation output of ", submission.id, validationOutput);
+            
             // Calculate average confidence score
-            const averageConfidenceScore = validationOutput.length > 0
-              ? validationOutput.reduce((sum, control) => sum + control.ConfidenceScore, 0) / validationOutput.length
-              : 0;
-            console.log("Average confidence score of ", submission.id, averageConfidenceScore)
+            const averageConfidenceScore = validationOutput.reduce(
+              (sum, control) => sum + (control.ConfidenceScore || 0), 
+              0
+            ) / validationOutput.length;
+            
+            console.log("Average confidence score of ", submission.id, averageConfidenceScore);
+            
             // Filter controls needing verification (confidence < 80%)
             const controlsNeedingVerification = validationOutput.filter(
-              control => control.ConfidenceScore < 80
+              control => (control.ConfidenceScore || 0) < 80
             );
-            console.log("Controls needing verification of ", submission.id, controlsNeedingVerification)
+            
+            console.log("Controls needing verification of ", submission.id, 
+              controlsNeedingVerification.map(c => ({
+                id: c.ControlID,
+                score: c.ConfidenceScore
+              }))
+            );
+            
             return {
               ...submission,
               validationOutput,
@@ -73,12 +105,23 @@ export default function Validation() {
             };
           } catch (error) {
             console.error(`Error processing submission ${submission.id}:`, error);
-            return submission;
+            // Return submission with empty validation data on error
+            return {
+              ...submission,
+              validationOutput: [],
+              averageConfidenceScore: 0,
+              controlsNeedingVerification: []
+            };
           }
         })
       );
       
-      setSubmissions(submissionsWithValidation);
+      // Filter out any failed processing
+      const validSubmissions = submissionsWithValidation.filter(sub => 
+        sub && typeof sub === 'object'
+      );
+      
+      setSubmissions(validSubmissions);
     } catch (error) {
       console.error('Error fetching submissions:', error);
       toast({
@@ -90,6 +133,55 @@ export default function Validation() {
       setLoading(false);
     }
   };
+  // const fetchSubmissionsWithValidation = async () => {
+  //   try {
+  //     setLoading(true);
+      
+  //     // Get all submissions
+  //     const allSubmissions = await getAllSubmissions();
+      
+  //     // Get validation output for each submission
+  //     const submissionsWithValidation = await Promise.all(
+  //       allSubmissions.map(async (submission) => {
+  //         try {
+  //           const validationOutput = await getValidationOutput(submission.id);
+            
+  //           console.log("Validation output of ", submission.id, validationOutput)
+  //           // Calculate average confidence score
+  //           const averageConfidenceScore = validationOutput.length > 0
+  //             ? validationOutput.reduce((sum, control) => sum + control.ConfidenceScore, 0) / validationOutput.length
+  //             : 0;
+  //           console.log("Average confidence score of ", submission.id, averageConfidenceScore)
+  //           // Filter controls needing verification (confidence < 80%)
+  //           const controlsNeedingVerification = validationOutput.filter(
+  //             control => control.ConfidenceScore < 80
+  //           );
+  //           console.log("Controls needing verification of ", submission.id, controlsNeedingVerification)
+  //           return {
+  //             ...submission,
+  //             validationOutput,
+  //             averageConfidenceScore,
+  //             controlsNeedingVerification
+  //           };
+  //         } catch (error) {
+  //           console.error(`Error processing submission ${submission.id}:`, error);
+  //           return submission;
+  //         }
+  //       })
+  //     );
+      
+  //     setSubmissions(submissionsWithValidation);
+  //   } catch (error) {
+  //     console.error('Error fetching submissions:', error);
+  //     toast({
+  //       title: 'Error',
+  //       description: 'Failed to load submissions. Please try again.',
+  //       variant: 'destructive',
+  //     });
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   useEffect(() => {
     fetchSubmissionsWithValidation();
