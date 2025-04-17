@@ -13,7 +13,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
-import { SubmissionWithValidation, getSubmissionDetails, SubmissionRecord, ControlAssessment, getValidationOutput, updateSubmissionStatus } from "@/services/aws-service";
+import { SubmissionWithValidation, getAllSubmissions, getSubmissionDetails, SubmissionRecord, ControlAssessment, getValidationOutput, updateSubmissionStatus } from "@/services/aws-service";
 
 
 const getStatusBadgeColor = (status: string) => {
@@ -29,8 +29,17 @@ const getStatusBadgeColor = (status: string) => {
 export default function Validation() {
   const [submissions, setSubmissions] = useState<SubmissionWithValidation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState(""); // Add this
   const [currentTab, setCurrentTab] = useState('current');
   const { toast } = useToast();
+
+  // Filter function
+  const filteredSubmissions = submissions.filter(submission => 
+    submission.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    submission.partnerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    submission.validationType.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    submission.competencyCategory?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const fetchSubmissionsWithValidation = async () => {
     try {
@@ -170,13 +179,13 @@ export default function Validation() {
       <Tabs defaultValue="current" className="space-y-4">
         <TabsList>
           <TabsTrigger value="current">
-            Pending Verification ({submissions.filter(s => s.status === 'AI Validation').length})
+            Pending Verification ({filteredSubmissions.filter(s => s.status === 'AI Validation').length})
           </TabsTrigger>
           <TabsTrigger value="in-progress">
-            In Progress ({submissions.filter(s => s.status === 'Human Validation').length})
+            In Progress ({filteredSubmissions.filter(s => s.status === 'Human Validation').length})
           </TabsTrigger>
           <TabsTrigger value="completed">
-            Completed ({submissions.filter(s => ['Approved', 'Rejected'].includes(s.status)).length})
+            Completed ({filteredSubmissions.filter(s => ['Approved', 'Rejected'].includes(s.status)).length})
           </TabsTrigger>
         </TabsList>
   
@@ -193,9 +202,13 @@ export default function Validation() {
                 <div className="flex items-center justify-center h-40">
                   <p className="text-muted-foreground">Loading submissions...</p>
                 </div>
+              ) : filteredSubmissions.length === 0 ? (
+                <div className="flex items-center justify-center h-40">
+                  <p className="text-muted-foreground">No submissions found</p>
+                </div>
               ) : (
                 <div className="space-y-6">
-                  {submissions
+                  {filteredSubmissions
                     .filter(sub => sub.status === 'AI Validation')
                     .map(submission => (
                       <div key={submission.id} className="border rounded-lg p-4">
