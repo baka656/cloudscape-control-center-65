@@ -4,7 +4,7 @@ import { awsConfig } from '../config/aws-config';
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { uploadData, getUrl } from 'aws-amplify/storage';
 import { get, post } from 'aws-amplify/api';
-
+import { GetUrlInput } from 'aws-amplify/storage';
 // Export interfaces for TypeScript typing
 export interface ControlAssessment {
   ControlID: string;
@@ -34,16 +34,34 @@ export interface SubmissionWithValidation extends SubmissionRecord {
 
 export const getValidationOutput = async (submissionId: string): Promise<ControlAssessment[]> => {
   try {
-    const response = await fetch(
-      `https://partner-competency-self-assessment-files.s3.amazonaws.com/${submissionId}/${submissionId}_validation_output.json`
-    );
-    if (!response.ok) {
-      throw new Error('Validation output not found');
+    console.log('Fetching validation output for:', submissionId);
+    
+    // Get the validation output JSON file
+    const validationFileInput: GetUrlInput = {
+      key: `${submissionId}/${submissionId}_validation_output.json`,
+      options: {
+        accessLevel: 'guest',
+        validateObjectExistence: true
+      }
+    };
+
+    const validationFileResult = await getUrl(validationFileInput);
+    
+    if (!validationFileResult.url) {
+      throw new Error('Validation output file not found');
     }
-    return await response.json();
+
+    const response = await fetch(validationFileResult.url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch validation output: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data as ControlAssessment[];
+
   } catch (error) {
     console.error('Error fetching validation output:', error);
-    return [];
+    throw error;
   }
 };
 
