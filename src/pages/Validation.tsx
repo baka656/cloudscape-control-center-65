@@ -18,22 +18,94 @@ import { SubmissionWithValidation, getAllSubmissions, getSubmissionDetails, Subm
 
 const getStatusBadgeColor = (status: string) => {
   const colors = {
-    'AI Validation': 'bg-purple-100 text-purple-800 dark:bg-purple-900/20',
-    'Human Validation': 'bg-blue-100 text-blue-800 dark:bg-blue-900/20',
-    'Approved': 'bg-green-100 text-green-800 dark:bg-green-900/20',
-    'Rejected': 'bg-red-100 text-red-800 dark:bg-red-900/20'
+    'Pending': 'bg-yellow-100 text-yellow-800',
+    'In Review': 'bg-blue-100 text-blue-800',
+    'AI Validation': 'bg-purple-100 text-purple-800',
+    'Human Validation': 'bg-indigo-100 text-indigo-800',
+    'Approved': 'bg-green-100 text-green-800',
+    'Rejected': 'bg-red-100 text-red-800'
   };
-  return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+  return colors[status] || 'bg-gray-100 text-gray-800';
+};
+
+// Control card component
+interface ControlCardProps {
+  control: ControlAssessment;
+  onVerify: (action: 'pass' | 'fail', notes: string) => void;
+  disabled?: boolean;
+}
+
+const ControlCard: React.FC<ControlCardProps> = ({ control, onVerify, disabled }) => {
+  const [notes, setNotes] = useState('');
+
+  return (
+    <div className="border rounded-md p-4 mt-4">
+      <div className="flex justify-between items-start mb-2">
+        <div>
+          <h4 className="font-medium">
+            {control.ControlID}: {control.ControlTitle}
+          </h4>
+          <p className="text-sm text-muted-foreground">
+            Confidence Score: {(control.ConfidenceScore * 100).toFixed(1)}%
+          </p>
+          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+            control.ControlPassFail === 'pass' 
+              ? 'bg-green-100 text-green-800' 
+              : control.ControlPassFail === 'fail'
+              ? 'bg-red-100 text-red-800'
+              : 'bg-yellow-100 text-yellow-800'
+          }`}>
+            {control.ControlPassFail.toUpperCase()}
+          </span>
+        </div>
+        {!disabled && (
+          <div className="flex space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onVerify('fail', notes)}
+            >
+              <ThumbsDown className="h-4 w-4 mr-1" />
+              Reject
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => onVerify('pass', notes)}
+            >
+              <ThumbsUp className="h-4 w-4 mr-1" />
+              Approve
+            </Button>
+          </div>
+        )}
+      </div>
+      <div className="mt-2">
+        <h5 className="text-sm font-medium mb-1">AI Analysis</h5>
+        <p className="text-sm text-muted-foreground bg-muted p-2 rounded">
+          {control.ControlPassFailReason}
+        </p>
+      </div>
+      {!disabled && (
+        <div className="mt-2">
+          <h5 className="text-sm font-medium mb-1">Verification Notes</h5>
+          <Textarea
+            placeholder="Add verification notes..."
+            className="min-h-[100px]"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+          />
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default function Validation() {
   const [submissions, setSubmissions] = useState<SubmissionWithValidation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState(""); // Add this
-  const [currentTab, setCurrentTab] = useState('current');
+  const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
 
-  // Filter function
+  // Filter submissions based on search term
   const filteredSubmissions = submissions.filter(submission => 
     submission.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
     submission.partnerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -41,18 +113,24 @@ export default function Validation() {
     submission.competencyCategory?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Group submissions by status
+  const pendingValidation = filteredSubmissions.filter(s => s.applicationStatus === 'AI Validation');
+  const inProgress = filteredSubmissions.filter(s => s.applicationStatus === 'Human Validation');
+  const completed = filteredSubmissions.filter(s => 
+    ['Approved', 'Rejected'].includes(s.applicationStatus)
+  );
+  // ... continuing from previous code
+
+  // Fetch submissions and their validation outputs
   const fetchSubmissionsWithValidation = async () => {
     try {
       setLoading(true);
-      
-      // Get all submissions
       const allSubmissions = await getAllSubmissions();
       
-      // Get validation output for each submission
       const submissionsWithValidation = await Promise.all(
         allSubmissions.map(async (submission) => {
           try {
-            // Only try to fetch validation if status is appropriate
+            // Only fetch validation for relevant statuses
             if (!['AI Validation', 'Human Validation'].includes(submission.applicationStatus)) {
               return {
                 ...submission,
@@ -61,10 +139,9 @@ export default function Validation() {
                 controlsNeedingVerification: []
               };
             }
-  
+
             const validationOutput = await getValidationOutput(submission.id);
             
-            // If no validation output, return submission with empty values
             if (!validationOutput || !Array.isArray(validationOutput)) {
               console.log(`No validation output for ${submission.id}`);
               return {
@@ -74,29 +151,18 @@ export default function Validation() {
                 controlsNeedingVerification: []
               };
             }
-            
-            console.log("Validation output of ", submission.id, validationOutput);
-            
+
             // Calculate average confidence score
             const averageConfidenceScore = validationOutput.reduce(
-              (sum, control) => sum + (control.ConfidenceScore || 0), 
+              (sum, control) => sum + control.ConfidenceScore, 
               0
             ) / validationOutput.length;
-            
-            console.log("Average confidence score of ", submission.id, averageConfidenceScore);
-            
+
             // Filter controls needing verification (confidence < 80%)
             const controlsNeedingVerification = validationOutput.filter(
-              control => (control.ConfidenceScore || 0) < 80
+              control => control.ConfidenceScore < 0.8
             );
-            
-            console.log("Controls needing verification of ", submission.id, 
-              controlsNeedingVerification.map(c => ({
-                id: c.ControlID,
-                score: c.ConfidenceScore
-              }))
-            );
-            
+
             return {
               ...submission,
               validationOutput,
@@ -105,23 +171,12 @@ export default function Validation() {
             };
           } catch (error) {
             console.error(`Error processing submission ${submission.id}:`, error);
-            // Return submission with empty validation data on error
-            return {
-              ...submission,
-              validationOutput: [],
-              averageConfidenceScore: 0,
-              controlsNeedingVerification: []
-            };
+            return submission;
           }
         })
       );
-      
-      // Filter out any failed processing
-      const validSubmissions = submissionsWithValidation.filter(sub => 
-        sub && typeof sub === 'object'
-      );
-      
-      setSubmissions(validSubmissions);
+
+      setSubmissions(submissionsWithValidation);
     } catch (error) {
       console.error('Error fetching submissions:', error);
       toast({
@@ -133,66 +188,12 @@ export default function Validation() {
       setLoading(false);
     }
   };
-  // const fetchSubmissionsWithValidation = async () => {
-  //   try {
-  //     setLoading(true);
-      
-  //     // Get all submissions
-  //     const allSubmissions = await getAllSubmissions();
-      
-  //     // Get validation output for each submission
-  //     const submissionsWithValidation = await Promise.all(
-  //       allSubmissions.map(async (submission) => {
-  //         try {
-  //           const validationOutput = await getValidationOutput(submission.id);
-            
-  //           console.log("Validation output of ", submission.id, validationOutput)
-  //           // Calculate average confidence score
-  //           const averageConfidenceScore = validationOutput.length > 0
-  //             ? validationOutput.reduce((sum, control) => sum + control.ConfidenceScore, 0) / validationOutput.length
-  //             : 0;
-  //           console.log("Average confidence score of ", submission.id, averageConfidenceScore)
-  //           // Filter controls needing verification (confidence < 80%)
-  //           const controlsNeedingVerification = validationOutput.filter(
-  //             control => control.ConfidenceScore < 80
-  //           );
-  //           console.log("Controls needing verification of ", submission.id, controlsNeedingVerification)
-  //           return {
-  //             ...submission,
-  //             validationOutput,
-  //             averageConfidenceScore,
-  //             controlsNeedingVerification
-  //           };
-  //         } catch (error) {
-  //           console.error(`Error processing submission ${submission.id}:`, error);
-  //           return submission;
-  //         }
-  //       })
-  //     );
-      
-  //     setSubmissions(submissionsWithValidation);
-  //   } catch (error) {
-  //     console.error('Error fetching submissions:', error);
-  //     toast({
-  //       title: 'Error',
-  //       description: 'Failed to load submissions. Please try again.',
-  //       variant: 'destructive',
-  //     });
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
 
-  useEffect(() => {
-    fetchSubmissionsWithValidation();
-    const intervalId = setInterval(fetchSubmissionsWithValidation, 30000);
-    return () => clearInterval(intervalId);
-  }, []);
-
+  // Handle control verification
   const handleControlVerification = async (
     submissionId: string,
     controlId: string,
-    action: 'approve' | 'reject',
+    action: 'pass' | 'fail',
     notes: string
   ) => {
     try {
@@ -203,8 +204,8 @@ export default function Validation() {
             if (control.ControlID === controlId) {
               return {
                 ...control,
-                ControlPassFail: action === 'approve' ? 'pass' : 'fail',
-                ControlPassFailReason: notes
+                ControlPassFail: action,
+                ControlPassFailReason: notes || control.ControlPassFailReason
               };
             }
             return control;
@@ -212,22 +213,25 @@ export default function Validation() {
 
           return {
             ...sub,
-            validationOutput: updatedValidationOutput
+            validationOutput: updatedValidationOutput,
+            controlsNeedingVerification: sub.controlsNeedingVerification?.filter(
+              c => c.ControlID !== controlId
+            )
           };
         }
         return sub;
       }));
 
-      // Update in DynamoDB
+      // Update in backend
       await updateSubmissionStatus(submissionId, 'Human Validation', [{
         controlId,
-        status: action === 'approve' ? 'pass' : 'fail',
+        status: action,
         notes
       }]);
 
       toast({
         title: 'Control Updated',
-        description: `Control ${controlId} has been ${action}ed.`,
+        description: `Control ${controlId} has been ${action === 'pass' ? 'approved' : 'rejected'}.`,
         variant: 'default',
       });
     } catch (error) {
@@ -239,6 +243,41 @@ export default function Validation() {
       });
     }
   };
+
+  // Handle submission status update
+  const handleSubmissionStatusUpdate = async (
+    submissionId: string,
+    status: SubmissionRecord['applicationStatus']
+  ) => {
+    try {
+      await updateSubmissionStatus(submissionId, status);
+      
+      setSubmissions(prev => prev.map(sub => 
+        sub.id === submissionId ? { ...sub, applicationStatus: status } : sub
+      ));
+
+      toast({
+        title: 'Status Updated',
+        description: `Submission has been ${status.toLowerCase()}.`,
+        variant: 'default',
+      });
+    } catch (error) {
+      console.error('Error updating submission status:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update submission status.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Fetch submissions on mount and periodically
+  useEffect(() => {
+    fetchSubmissionsWithValidation();
+    const intervalId = setInterval(fetchSubmissionsWithValidation, 30000);
+    return () => clearInterval(intervalId);
+  }, []);
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -247,7 +286,7 @@ export default function Validation() {
           Review AI validation results and provide human verification
         </p>
       </div>
-  
+
       <div className="flex items-center space-x-2 mb-4">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -268,20 +307,22 @@ export default function Validation() {
           {loading ? 'Refreshing...' : 'Refresh'}
         </Button>
       </div>
-  
+      // ... continuing from previous code
+
       <Tabs defaultValue="current" className="space-y-4">
         <TabsList>
           <TabsTrigger value="current">
-            Pending Verification ({filteredSubmissions.filter(s => s.status === 'AI Validation').length})
+            Pending Verification ({pendingValidation.length})
           </TabsTrigger>
           <TabsTrigger value="in-progress">
-            In Progress ({filteredSubmissions.filter(s => s.status === 'Human Validation').length})
+            In Progress ({inProgress.length})
           </TabsTrigger>
           <TabsTrigger value="completed">
-            Completed ({filteredSubmissions.filter(s => ['Approved', 'Rejected'].includes(s.status)).length})
+            Completed ({completed.length})
           </TabsTrigger>
         </TabsList>
-  
+
+        {/* Pending Verification Tab */}
         <TabsContent value="current">
           <Card>
             <CardHeader>
@@ -295,103 +336,157 @@ export default function Validation() {
                 <div className="flex items-center justify-center h-40">
                   <p className="text-muted-foreground">Loading submissions...</p>
                 </div>
-              ) : filteredSubmissions.length === 0 ? (
+              ) : pendingValidation.length === 0 ? (
                 <div className="flex items-center justify-center h-40">
-                  <p className="text-muted-foreground">No submissions found</p>
+                  <p className="text-muted-foreground">No submissions pending verification</p>
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {filteredSubmissions
-                    .filter(sub => sub.status === 'AI Validation')
-                    .map(submission => (
-                      <div key={submission.id} className="border rounded-lg p-4">
-                        <div className="flex justify-between items-start mb-4">
-                          <div>
-                            <h3 className="text-lg font-semibold">
-                              {submission.partnerName} ({submission.id})
-                            </h3>
-                            <p className="text-sm text-muted-foreground">
-                              {submission.validationType}
-                              {submission.competencyCategory ? 
-                                `: ${submission.competencyCategory}` : ''}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm font-medium">
-                              AI Confidence Score: {
-                                submission.averageConfidenceScore?.toFixed(1)}%
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {submission.controlsNeedingVerification?.length || 0} controls need review
-                            </p>
-                          </div>
+                  {pendingValidation.map(submission => (
+                    <div key={submission.id} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h3 className="text-lg font-semibold">
+                            {submission.partnerName} ({submission.id})
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            {submission.validationType}
+                            {submission.competencyCategory ? 
+                              `: ${submission.competencyCategory}` : ''}
+                          </p>
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium mt-2 ${
+                            getStatusBadgeColor(submission.applicationStatus)
+                          }`}>
+                            {submission.applicationStatus}
+                          </span>
                         </div>
-  
-                        {submission.controlsNeedingVerification?.map(control => (
-                          <div key={control.ControlID} 
-                               className="border rounded-md p-4 mt-4">
-                            <div className="flex justify-between items-start mb-2">
-                              <div>
-                                <h4 className="font-medium">
-                                  {control.ControlID}: {control.ControlTitle}
-                                </h4>
-                                <p className="text-sm text-muted-foreground">
-                                  Confidence Score: {control.ConfidenceScore}%
-                                </p>
-                              </div>
-                              <div className="flex space-x-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleControlVerification(
-                                    submission.id,
-                                    control.ControlID,
-                                    'reject',
-                                    ''
-                                  )}
-                                >
-                                  <ThumbsDown className="h-4 w-4 mr-1" />
-                                  Reject
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleControlVerification(
-                                    submission.id,
-                                    control.ControlID,
-                                    'approve',
-                                    ''
-                                  )}
-                                >
-                                  <ThumbsUp className="h-4 w-4 mr-1" />
-                                  Approve
-                                </Button>
-                              </div>
-                            </div>
-                            <div className="mt-2">
-                              <h5 className="text-sm font-medium mb-1">AI Analysis</h5>
-                              <p className="text-sm text-muted-foreground bg-muted p-2 rounded">
-                                {control.ControlPassFailReason}
-                              </p>
-                            </div>
-                            <div className="mt-2">
-                              <h5 className="text-sm font-medium mb-1">
-                                Verification Notes
-                              </h5>
-                              <Textarea
-                                placeholder="Add verification notes..."
-                                className="min-h-[100px]"
-                                onChange={(e) => {
-                                  // Handle notes change
-                                }}
-                              />
-                            </div>
-                          </div>
-                        ))}
-  
-                        <div className="mt-4 flex justify-end space-x-2">
+                        <div className="text-right">
+                          <p className="text-sm font-medium">
+                            AI Confidence Score: {
+                              submission.averageConfidenceScore 
+                                ? (submission.averageConfidenceScore * 100).toFixed(1)
+                                : 0
+                            }%
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {submission.controlsNeedingVerification?.length || 0} controls need review
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Controls needing verification */}
+                      {submission.controlsNeedingVerification?.map(control => (
+                        <ControlCard
+                          key={control.ControlID}
+                          control={control}
+                          onVerify={(action, notes) => 
+                            handleControlVerification(submission.id, control.ControlID, action, notes)
+                          }
+                        />
+                      ))}
+
+                      <div className="mt-6 flex justify-end space-x-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => handleSubmissionStatusUpdate(
+                            submission.id,
+                            'Rejected'
+                          )}
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Reject Application
+                        </Button>
+                        <Button
+                          className="bg-primary"
+                          onClick={() => handleSubmissionStatusUpdate(
+                            submission.id,
+                            'Approved'
+                          )}
+                          disabled={
+                            submission.controlsNeedingVerification && 
+                            submission.controlsNeedingVerification.length > 0
+                          }
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Approve Application
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* In Progress Tab */}
+        <TabsContent value="in-progress">
+          <Card>
+            <CardHeader>
+              <CardTitle>In Progress Validations</CardTitle>
+              <CardDescription>
+                Submissions currently under human verification
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex items-center justify-center h-40">
+                  <p className="text-muted-foreground">Loading submissions...</p>
+                </div>
+              ) : inProgress.length === 0 ? (
+                <div className="flex items-center justify-center h-40">
+                  <p className="text-muted-foreground">No submissions in progress</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {inProgress.map(submission => (
+                    <div key={submission.id} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h3 className="text-lg font-semibold">
+                            {submission.partnerName} ({submission.id})
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            {submission.validationType}
+                            {submission.competencyCategory ? 
+                              `: ${submission.competencyCategory}` : ''}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-medium">Verification Progress</p>
+                          <Progress 
+                            value={
+                              submission.validationOutput 
+                                ? ((submission.validationOutput.length - 
+                                    (submission.controlsNeedingVerification?.length || 0)) / 
+                                   submission.validationOutput.length) * 100
+                                : 0
+                            } 
+                            className="w-[200px] mt-2"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Controls needing verification */}
+                      {submission.controlsNeedingVerification?.map(control => (
+                        <ControlCard
+                          key={control.ControlID}
+                          control={control}
+                          onVerify={(action, notes) => 
+                            handleControlVerification(submission.id, control.ControlID, action, notes)
+                          }
+                        />
+                      ))}
+
+                      <div className="mt-6 flex justify-between items-center">
+                        <Button variant="outline" onClick={() => fetchSubmissionsWithValidation()}>
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Refresh
+                        </Button>
+                        <div className="flex space-x-2">
                           <Button
                             variant="outline"
-                            onClick={() => updateSubmissionStatus(
+                            onClick={() => handleSubmissionStatusUpdate(
                               submission.id,
                               'Rejected'
                             )}
@@ -401,261 +496,148 @@ export default function Validation() {
                           </Button>
                           <Button
                             className="bg-primary"
-                            onClick={() => updateSubmissionStatus(
+                            onClick={() => handleSubmissionStatusUpdate(
                               submission.id,
                               'Approved'
                             )}
+                            disabled={
+                              submission.controlsNeedingVerification && 
+                              submission.controlsNeedingVerification.length > 0
+                            }
                           >
                             <CheckCircle className="h-4 w-4 mr-2" />
                             Approve Application
                           </Button>
                         </div>
                       </div>
-                    ))}
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
-  
-        <TabsContent value="in-progress">
-  <Card>
-    <CardHeader>
-      <CardTitle>In Progress Validations</CardTitle>
-      <CardDescription>
-        Submissions currently under human verification
-      </CardDescription>
-    </CardHeader>
-    <CardContent>
-      {loading ? (
-        <div className="flex items-center justify-center h-40">
-          <p className="text-muted-foreground">Loading submissions...</p>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {submissions
-            .filter(sub => sub.status === 'Human Validation')
-            .map(submission => (
-              <div key={submission.id} className="border rounded-lg p-4">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-lg font-semibold">
-                      {submission.partnerName} ({submission.id})
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      {submission.validationType}
-                      {submission.competencyCategory ? 
-                        `: ${submission.competencyCategory}` : ''}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium">
-                      Validation Progress
-                    </p>
-                    <Progress 
-                      value={
-                        submission.validationOutput 
-                          ? (submission.validationOutput.filter(
-                              c => c.ControlPassFail !== 'pending'
-                            ).length / submission.validationOutput.length) * 100
-                          : 0
-                      } 
-                      className="w-[200px] mt-2"
-                    />
-                  </div>
+                {/* Completed Tab */}
+                <TabsContent value="completed">
+          <Card>
+            <CardHeader>
+              <CardTitle>Completed Validations</CardTitle>
+              <CardDescription>
+                History of validated submissions
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex items-center justify-center h-40">
+                  <p className="text-muted-foreground">Loading submissions...</p>
                 </div>
-
+              ) : completed.length === 0 ? (
+                <div className="flex items-center justify-center h-40">
+                  <p className="text-muted-foreground">No completed validations</p>
+                </div>
+              ) : (
                 <div className="space-y-4">
-                  {submission.controlsNeedingVerification?.map(control => (
-                    <div key={control.ControlID} 
-                         className={`border rounded-md p-4 ${
-                           control.ControlPassFail !== 'pending' 
-                             ? 'bg-muted/50' : ''
-                         }`}>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-medium">
-                            {control.ControlID}: {control.ControlTitle}
-                          </h4>
-                          <div className="flex items-center space-x-2 mt-1">
-                            <span className="text-sm text-muted-foreground">
-                              Confidence: {control.ConfidenceScore}%
-                            </span>
-                            {control.ControlPassFail !== 'pending' && (
-                              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                                control.ControlPassFail === 'pass' 
-                                  ? 'bg-green-100 text-green-800' 
-                                  : 'bg-red-100 text-red-800'
-                              }`}>
-                                {control.ControlPassFail === 'pass' 
-                                  ? 'Approved' 
-                                  : 'Rejected'}
-                              </span>
-                            )}
-                          </div>
+                  {completed.map(submission => (
+                    <div key={submission.id} 
+                         className="flex items-center justify-between p-4 border rounded-md hover:bg-muted/50 transition-colors">
+                      <div>
+                        <h3 className="font-medium">
+                          {submission.partnerName} ({submission.id})
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          {submission.validationType}
+                          {submission.competencyCategory ? 
+                            `: ${submission.competencyCategory}` : ''}
+                        </p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            getStatusBadgeColor(submission.applicationStatus)
+                          }`}>
+                            {submission.applicationStatus}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            Completed on: {new Date(submission.submittedAt).toLocaleDateString()}
+                          </span>
                         </div>
-                        {control.ControlPassFail === 'pending' && (
-                          <div className="flex space-x-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleControlVerification(
-                                submission.id,
-                                control.ControlID,
-                                'reject',
-                                ''
-                              )}
-                            >
-                              <ThumbsDown className="h-4 w-4 mr-1" />
-                              Reject
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => handleControlVerification(
-                                submission.id,
-                                control.ControlID,
-                                'approve',
-                                ''
-                              )}
-                            >
-                              <ThumbsUp className="h-4 w-4 mr-1" />
-                              Approve
-                            </Button>
-                          </div>
-                        )}
                       </div>
-
-                      <div className="grid grid-cols-2 gap-4 mt-4">
-                        <div>
-                          <h5 className="text-sm font-medium mb-1">AI Analysis</h5>
-                          <p className="text-sm text-muted-foreground bg-muted p-2 rounded">
-                            {control.ControlPassFailReason}
+                      <div className="flex items-center gap-6">
+                        <div className="text-right">
+                          <p className="text-sm font-medium">
+                            Final AI Confidence
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {submission.averageConfidenceScore 
+                              ? (submission.averageConfidenceScore * 100).toFixed(1)
+                              : 0}%
                           </p>
                         </div>
-                        <div>
-                          <h5 className="text-sm font-medium mb-1">
-                            Verification Notes
-                          </h5>
-                          <Textarea
-                            placeholder="Add verification notes..."
-                            className="min-h-[100px]"
-                            value={control.ControlPassFailReason}
-                            onChange={(e) => {
-                              // Handle notes change
-                            }}
-                            disabled={control.ControlPassFail !== 'pending'}
-                          />
-                        </div>
+                        <details className="relative">
+                          <summary className="list-none cursor-pointer">
+                            <Button variant="outline" size="sm">
+                              View Details
+                            </Button>
+                          </summary>
+                          <div className="absolute right-0 top-full mt-2 w-[400px] p-4 bg-white rounded-md shadow-lg border z-10">
+                            <h4 className="font-medium mb-2">Control Assessment Results</h4>
+                            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                              {submission.validationOutput?.map(control => (
+                                <div key={control.ControlID} 
+                                     className="p-2 border rounded-sm text-sm">
+                                  <div className="flex justify-between items-start">
+                                    <div>
+                                      <p className="font-medium">{control.ControlID}</p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {control.ControlTitle}
+                                      </p>
+                                    </div>
+                                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                      control.ControlPassFail === 'pass'
+                                        ? 'bg-green-100 text-green-800'
+                                        : 'bg-red-100 text-red-800'
+                                    }`}>
+                                      {control.ControlPassFail.toUpperCase()}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs mt-1 text-muted-foreground">
+                                    {control.ControlPassFailReason}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </details>
                       </div>
                     </div>
                   ))}
                 </div>
-
-                <div className="mt-6 flex justify-between items-center">
-                  <Button variant="outline" onClick={() => fetchSubmissionsWithValidation()}>
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Refresh
-                  </Button>
-                  <div className="flex space-x-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => updateSubmissionStatus(
-                        submission.id,
-                        'Rejected'
-                      )}
-                    >
-                      <XCircle className="h-4 w-4 mr-2" />
-                      Reject Application
-                    </Button>
-                    <Button
-                      className="bg-primary"
-                      onClick={() => updateSubmissionStatus(
-                        submission.id,
-                        'Approved'
-                      )}
-                      disabled={
-                        submission.validationOutput?.some(
-                          c => c.ControlPassFail === 'pending'
-                        )
-                      }
-                    >
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Approve Application
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
-        </div>
-      )}
-    </CardContent>
-  </Card>
-</TabsContent>
-
-<TabsContent value="completed">
-  <Card>
-    <CardHeader>
-      <CardTitle>Completed Validations</CardTitle>
-      <CardDescription>
-        History of validated submissions
-      </CardDescription>
-    </CardHeader>
-    <CardContent>
-      {loading ? (
-        <div className="flex items-center justify-center h-40">
-          <p className="text-muted-foreground">Loading submissions...</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {submissions
-            .filter(sub => ['Approved', 'Rejected'].includes(sub.status))
-            .map(submission => (
-              <div key={submission.id} 
-                   className="flex items-center justify-between p-4 border rounded-md">
-                <div>
-                  <h3 className="font-medium">
-                    {submission.partnerName} ({submission.id})
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {submission.validationType}
-                    {submission.competencyCategory ? 
-                      `: ${submission.competencyCategory}` : ''}
-                  </p>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <div className="text-right">
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      getStatusBadgeColor(submission.status)
-                    }`}>
-                      {submission.status}
-                    </span>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Average AI Confidence: {
-                        submission.averageConfidenceScore?.toFixed(1)
-                      }%
-                    </p>
-                  </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => {
-                      // Handle viewing details
-                    }}
-                  >
-                    View Details
-                  </Button>
-                </div>
-              </div>
-            ))}
-        </div>
-      )}
-    </CardContent>
-  </Card>
-</TabsContent>
-        
+              )}
+            </CardContent>
+            <CardFooter className="flex justify-between">
+              <p className="text-sm text-muted-foreground">
+                Showing {completed.length} completed validations
+              </p>
+              <Button variant="outline" size="sm" onClick={fetchSubmissionsWithValidation}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      {/* Error Boundary */}
+      {error && (
+        <div className="fixed bottom-4 right-4 bg-destructive text-destructive-foreground px-4 py-2 rounded-md shadow-lg">
+          <p className="font-medium">Error</p>
+          <p className="text-sm">{error}</p>
+        </div>
+      )}
     </div>
   );
+}
+
+
+
 
 // export default function Validation() {
 //   const [currentSubmission, setCurrentSubmission] = useState<SubmissionRecord | null>(null);
