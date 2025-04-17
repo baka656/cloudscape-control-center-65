@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Search, Plus, ExternalLink, MoreHorizontal } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { generateValidationPDF } from '@/pages/pdf';
 import { getValidationOutput } from '@/services/aws-service';
 import {
   Table,
@@ -88,10 +87,40 @@ export default function Submissions() {
   const handleViewValidation = async (submissionId: string) => {
     try {
       const validationOutput = await getValidationOutput(submissionId);
-      const pdf = generateValidationPDF(submissionId, validationOutput);
-      pdf.save(`validation-${submissionId}.pdf`);
+      
+      // Format the validation data
+      const reportData = {
+        submissionId,
+        generatedAt: new Date().toISOString(),
+        summary: {
+          totalControls: validationOutput.length,
+          passedControls: validationOutput.filter(c => c.ControlPassFail === 'pass').length,
+          averageConfidence: validationOutput.reduce((sum, control) => 
+            sum + control.ConfidenceScore, 0) / validationOutput.length
+        },
+        controls: validationOutput
+      };
+
+      // Create and download JSON file
+      const blob = new Blob([JSON.stringify(reportData, null, 2)], { 
+        type: 'application/json' 
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `validation-${submissionId}.json`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: 'Success',
+        description: 'Validation report downloaded successfully.',
+        variant: 'success',
+      });
     } catch (error) {
-      console.error('Error generating validation PDF:', error);
+      console.error('Error generating validation report:', error);
       toast({
         title: 'Error',
         description: 'Failed to generate validation report.',
