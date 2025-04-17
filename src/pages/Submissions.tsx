@@ -77,9 +77,9 @@ export default function Submissions() {
   
   // Filter submissions based on search term
   const filteredSubmissions = submissions.filter(sub => 
-    sub.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    sub.partnerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    sub.validationType.toLowerCase().includes(searchTerm.toLowerCase())
+    sub.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    sub.partnerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    sub.validationType?.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
   const handleNewSubmission = async (data: SubmissionFormData) => {
