@@ -15,14 +15,12 @@ export interface ControlAssessment {
 }
 
 export interface SubmissionRecord {
-  id: string; // This will be the application ID
+  id: string;
   partnerName: string;
-  salesforceId: string;
   validationType: string;
   competencyCategory?: string;
   status: 'Pending' | 'In Review' | 'AI Validation' | 'Human Validation' | 'Approved' | 'Rejected';
   submittedAt: string;
-  s3Bucket?: string;
   controls?: ControlAssessment[];
 }
 
@@ -33,7 +31,7 @@ export const createBucketAndUploadFiles = async (
   additionalFiles: File[]
 ) => {
   try {
-    const bucketName = `${salesforceId.toLowerCase()}`;
+    const bucketName = `${salesforceId}`;
     console.log('Uploading files to S3...', bucketName);
     
     // // Upload self-assessment file
@@ -41,34 +39,29 @@ export const createBucketAndUploadFiles = async (
     // console.log('Uploading self-assessment file:', selfAssessmentKey);
     
     await uploadData({
-      path: `partner-competency-self-assessment-files/${salesforceId}`,
+      path: `${salesforceId}/${salesforceId}.xlsx`,
       data: selfAssessment,
       options: {
-        contentType: selfAssessment.type,
+        contentType: 'xlsx',
         accessLevel: 'guest'
       }
     });
 
-    // Upload additional files
-    // const additionalFilesKeys = [];
-    // for (const file of additionalFiles) {
-    //   const fileKey = `additional-docs/${Date.now()}-${file.name}`;
-    //   await uploadData({
-    //     key: fileKey,
-    //     data: file,
-    //     options: {
-    //       contentType: file.type,
-    //       accessLevel: 'guest'
-    //     }
-    //   });
-    //   additionalFilesKeys.push(fileKey);
-    // }
-
-    // return {
-    //   bucketName,
-    //   selfAssessmentKey,
-    //   additionalFilesKeys
-    // };
+    //Upload additional files
+    const additionalFilesKeys = [];
+    for (const file of additionalFiles) {
+      const fileKey = `${salesforceId}/${file.name}`;
+      await uploadData({
+        path: fileKey,
+        data: file,
+        options: {
+          contentType: file.type,
+          accessLevel: 'guest'
+        }
+      });
+      additionalFilesKeys.push(fileKey);
+    }
+    console.log('Files uploaded successfully', additionalFilesKeys);
   } catch (error) {
     console.error("Error uploading files to S3:", error);
     throw new Error('Failed to upload files to S3');
@@ -86,6 +79,7 @@ export const saveSubmissionToDynamoDB = async (submissionData: SubmissionRecord)
       },
       body: JSON.stringify(submissionData)
     });
+    console.log("Submission saved in dynamodb", response)
     
     return { success: true, id: submissionData.id, response };
   } catch (apiError) {
@@ -105,6 +99,7 @@ export const invokeSubmissionProcessing = async (submissionData: SubmissionRecor
       body: JSON.stringify(submissionData)
     });
     
+    console.log("Sent the submission to lambda", response)
     return { success: true, response };
   } catch (error) {
     console.error("Error invoking Lambda function:", error);
@@ -121,14 +116,14 @@ export const getSubmissionDetails = async (submissionId: string): Promise<Submis
         'Content-Type': 'application/json'
       }
     });
-    if (!response.ok) {
-      if (response.status === 404) {
-        throw new Error('Submission not found');
-      }
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+    // if (!response.ok) {
+    //   if (response.status === 404) {
+    //     throw new Error('Submission not found');
+    //   }
+    //   throw new Error(`HTTP error! status: ${response.status}`);
+    // }
     const data = await response.json();
-    console.log("Submission data", data)
+    console.log("One Submission retrieved from dynamodb", data)
     return data.body as SubmissionRecord;
     } catch (error) {
     console.error("Error fetching submission details:", error);
@@ -149,6 +144,7 @@ export const getAllSubmissions = async (): Promise<SubmissionRecord[]> => {
     // Check if response.body is an array
     const submissions = response.body;
     if (Array.isArray(submissions)) {
+      console.log("All Submissions retrieved from dynamodb", submissions)
       return submissions as SubmissionRecord[];
     } else {
       console.warn('API returned non-array response:', submissions);

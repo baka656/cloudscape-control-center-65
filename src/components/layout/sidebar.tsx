@@ -23,7 +23,7 @@ export function Sidebar({ isAdmin }: SidebarProps) {
       <div className="flex h-14 items-center border-b px-4">
         <div className={cn("flex items-center gap-2", collapsed && "justify-center w-full")}>
           <CloudCog className="h-6 w-6 text-secondary" />
-          {!collapsed && <span className="font-semibold text-sidebar-foreground">Cloudscape Controls</span>}
+          {!collapsed && <span className="font-semibold text-sidebar-foreground">VOTER</span>}
         </div>
       </div>
 

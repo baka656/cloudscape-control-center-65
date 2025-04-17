@@ -83,11 +83,9 @@ export default function Submissions() {
   
   const handleNewSubmission = async (data: SubmissionFormData) => {
     try {
-      // Create a new submission ID
-      const newSubmissionId = `APP-${new Date().getFullYear()}-${(Math.floor(Math.random() * 9000) + 1000)}`;
       
       // Create S3 bucket and upload files
-      const s3Result = await createBucketAndUploadFiles(
+      await createBucketAndUploadFiles(
         data.salesforceId,
         data.selfAssessment as File,
         data.additionalFiles
@@ -95,15 +93,15 @@ export default function Submissions() {
       
       // Create submission record
       const submissionRecord: SubmissionRecord = {
-        id: newSubmissionId,
         partnerName: data.partnerName,
-        salesforceId: data.salesforceId,
+        id: data.salesforceId,
         validationType: data.validationType,
         competencyCategory: data.competencyCategory,
         status: "Pending",
-        submittedAt: new Date().toISOString().split('T')[0],
-        s3Bucket: s3Result.bucketName,
+        submittedAt: new Date().toISOString().split('T')[0]
       };
+
+      console.log("Submission record", submissionRecord)
       
       // Save to DynamoDB
       await saveSubmissionToDynamoDB(submissionRecord);
@@ -117,7 +115,7 @@ export default function Submissions() {
       // Show success notification
       toast({
         title: "Submission Created",
-        description: `Application ${newSubmissionId} has been created successfully.`,
+        description: `Application ${data.salesforceId} has been created successfully.`,
         variant: "default",
       });
     } catch (error) {
