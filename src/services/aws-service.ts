@@ -38,14 +38,21 @@ export const getValidationOutput = async (submissionId: string): Promise<Control
     console.log('Fetching validation output for:', submissionId);
     
     const downloadResult = await downloadData({
-      path: `${submissionId}/${submissionId}_validation_output.json`,
+      path: `partner-competency-self-assessment-files/${submissionId}/${submissionId}_validation_output.json`,
       options: {
         accessLevel: 'guest'
       }
     }).result;
 
-    const jsonData = await downloadResult.body.json();
-    return jsonData as ControlAssessment[];
+    const textContent = await downloadResult.body.text();
+    try {
+      const jsonData = JSON.parse(textContent);
+      return jsonData as ControlAssessment[];
+    } catch (parseError) {
+      console.error('Error parsing JSON:', parseError);
+      console.log('Raw text content:', textContent);
+      throw new Error('Invalid JSON format in validation output');
+    }
   } catch (error) {
     console.error('Error fetching validation output:', error);
     throw error;
