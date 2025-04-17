@@ -36,9 +36,9 @@ export const createBucketAndUploadFiles = async (
     const bucketName = `${salesforceId.toLowerCase()}`;
     console.log('Uploading files to S3...', bucketName);
     
-    // Upload self-assessment file
-    const selfAssessmentKey = `self-assessment/${selfAssessment.name}`;
-    console.log('Uploading self-assessment file:', selfAssessmentKey);
+    // // Upload self-assessment file
+    // const selfAssessmentKey = `self-assessment/${selfAssessment.name}`;
+    // console.log('Uploading self-assessment file:', selfAssessmentKey);
     
     await uploadData({
       path: `partner-competency-self-assessment-files/${salesforceId}`,
@@ -50,25 +50,25 @@ export const createBucketAndUploadFiles = async (
     });
 
     // Upload additional files
-    const additionalFilesKeys = [];
-    for (const file of additionalFiles) {
-      const fileKey = `additional-docs/${Date.now()}-${file.name}`;
-      await uploadData({
-        key: fileKey,
-        data: file,
-        options: {
-          contentType: file.type,
-          accessLevel: 'guest'
-        }
-      });
-      additionalFilesKeys.push(fileKey);
-    }
+    // const additionalFilesKeys = [];
+    // for (const file of additionalFiles) {
+    //   const fileKey = `additional-docs/${Date.now()}-${file.name}`;
+    //   await uploadData({
+    //     key: fileKey,
+    //     data: file,
+    //     options: {
+    //       contentType: file.type,
+    //       accessLevel: 'guest'
+    //     }
+    //   });
+    //   additionalFilesKeys.push(fileKey);
+    // }
 
-    return {
-      bucketName,
-      selfAssessmentKey,
-      additionalFilesKeys
-    };
+    // return {
+    //   bucketName,
+    //   selfAssessmentKey,
+    //   additionalFilesKeys
+    // };
   } catch (error) {
     console.error("Error uploading files to S3:", error);
     throw new Error('Failed to upload files to S3');
@@ -82,8 +82,7 @@ export const saveSubmissionToDynamoDB = async (submissionData: SubmissionRecord)
     const response = await fetch('https://swiozvzqs6.execute-api.us-east-1.amazonaws.com/prod/submissions', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(submissionData)
     });
@@ -101,8 +100,7 @@ export const invokeSubmissionProcessing = async (submissionData: SubmissionRecor
     const response = await fetch('https://j3rjmmfkh6.execute-api.us-east-1.amazonaws.com/default', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(submissionData)
     });
@@ -120,8 +118,7 @@ export const getSubmissionDetails = async (submissionId: string): Promise<Submis
     const response = await fetch(`https://swiozvzqs6.execute-api.us-east-1.amazonaws.com/prod/submissions/${submissionId}`, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
+        'Content-Type': 'application/json'
       }
     });
     if (!response.ok) {
@@ -145,8 +142,7 @@ export const getAllSubmissions = async (): Promise<SubmissionRecord[]> => {
     const response = await fetch('https://swiozvzqs6.execute-api.us-east-1.amazonaws.com/prod/submissions', {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
+        'Content-Type': 'application/json'
       }
     });
     
