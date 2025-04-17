@@ -45,8 +45,12 @@ export const getValidationOutput = async (submissionId: string): Promise<Control
     }).result;
 
     const textContent = await downloadResult.body.text();
+    const cleanedContent = textContent
+      .replace(/```json\n/, '')  // Remove opening ```json
+      .replace(/```$/, '')       // Remove closing ```
+      .trim();   
     try {
-      const jsonData = JSON.parse(textContent);
+      const jsonData = JSON.parse(cleanedContent);
       return jsonData as ControlAssessment[];
     } catch (parseError) {
       console.error('Error parsing JSON:', parseError);
