@@ -14,25 +14,27 @@ export const awsConfig = {
   }
 };
 
-// Updated Amplify configuration with correct types
+// Updated Amplify configuration compatible with Amplify Gen 2
 export const amplifyConfig = {
+  Auth: {
+    Cognito: {
+      identityPoolId: process.env.REACT_APP_IDENTITY_POOL_ID || '',
+      allowGuestAccess: true,
+      region: awsConfig.region,
+    }
+  },
   Storage: {
-    region: awsConfig.region,
-    bucket: awsConfig.s3.bucket,
-    identityPoolId: process.env.REACT_APP_IDENTITY_POOL_ID || '' // This is required for S3 access
+    S3: {
+      bucket: awsConfig.s3.bucket,
+      region: awsConfig.region,
+    }
   },
   API: {
-    endpoints: [
-      {
-        name: "SubmissionAPI",
+    REST: {
+      SubmissionAPI: {
         endpoint: awsConfig.api.invokeUrl,
-        custom_header: async () => {
-          return {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*' // Request CORS headers
-          };
-        }
+        region: awsConfig.region,
       }
-    ]
+    }
   }
 };

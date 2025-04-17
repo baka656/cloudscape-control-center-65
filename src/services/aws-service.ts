@@ -1,6 +1,9 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { awsConfig } from '../config/aws-config';
+import { fetchAuthSession } from 'aws-amplify/auth';
+import { uploadData, getUrl } from 'aws-amplify/storage';
+import { get, post } from 'aws-amplify/api';
 
 // Export interfaces for TypeScript typing
 export interface ControlAssessment {
@@ -31,21 +34,20 @@ export const createBucketAndUploadFiles = async (
 ) => {
   try {
     const bucketName = `partner-submissions-${salesforceId.toLowerCase()}`;
-    
-    // Dynamically import Amplify Storage to ensure it's available
-    const { uploadData } = await import('@aws-amplify/storage');
-    
-    console.log('Uploading self-assessment file...');
+    console.log('Uploading files to S3...');
     
     // Upload self-assessment file
     const selfAssessmentKey = `self-assessment/${Date.now()}-${selfAssessment.name}`;
+    console.log('Uploading self-assessment file:', selfAssessmentKey);
+    
     await uploadData({
       key: selfAssessmentKey,
       data: selfAssessment,
       options: {
-        contentType: selfAssessment.type
+        contentType: selfAssessment.type,
+        accessLevel: 'guest'
       }
-    }).result;
+    });
 
     // Upload additional files
     const additionalFilesKeys = [];
@@ -55,9 +57,10 @@ export const createBucketAndUploadFiles = async (
         key: fileKey,
         data: file,
         options: {
-          contentType: file.type
+          contentType: file.type,
+          accessLevel: 'guest'
         }
-      }).result;
+      });
       additionalFilesKeys.push(fileKey);
     }
 
@@ -75,42 +78,53 @@ export const createBucketAndUploadFiles = async (
 // Save submission to DynamoDB using API Gateway as a proxy
 export const saveSubmissionToDynamoDB = async (submissionData: SubmissionRecord) => {
   try {
-    // Using fetch with no-cors mode as fallback
-    const response = await fetch(`${awsConfig.api.invokeUrl}/submissions`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      },
-      mode: 'cors', // Try with cors first
-      body: JSON.stringify(submissionData)
-    });
+    console.log('Saving submission to DynamoDB:', submissionData);
     
-    if (!response.ok) {
-      // If regular fetch fails, try using Amplify API
-      const { post } = await import('@aws-amplify/api');
-      const result = await post({
+    // Try with Amplify API first
+    try {
+      const response = await post({
         apiName: 'SubmissionAPI',
-        path: '/submissions', 
+        path: '/submissions',
         options: {
-          body: submissionData
+          body: submissionData,
+          headers: { 
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
         }
       });
       
-      return { success: true, id: submissionData.id };
+      return { success: true, id: submissionData.id, response };
+    } catch (apiError) {
+      console.error("Error with Amplify API, falling back to fetch:", apiError);
+      
+      // Fallback to fetch
+      const response = await fetch(`${awsConfig.api.invokeUrl}/submissions`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        },
+        mode: 'cors',
+        body: JSON.stringify(submissionData)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`);
+      }
+      
+      const result = await response.json();
+      return { success: true, id: submissionData.id, result };
     }
-    
-    const result = await response.json();
-    return { success: true, id: submissionData.id };
   } catch (error) {
     console.error("Error saving to DynamoDB:", error);
     
+    // Last resort fallback using no-cors mode
     try {
-      // Last resort fallback using no-cors mode
       await fetch(`${awsConfig.api.invokeUrl}/submissions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        mode: 'no-cors', // Use no-cors as a last resort
+        mode: 'no-cors', 
         body: JSON.stringify(submissionData)
       });
       
@@ -125,11 +139,30 @@ export const saveSubmissionToDynamoDB = async (submissionData: SubmissionRecord)
 // Invoke Lambda function through API Gateway
 export const invokeSubmissionProcessing = async (submissionData: SubmissionRecord) => {
   try {
-    // Try first with fetch
+    console.log('Invoking submission processing:', submissionData);
+    
+    // Try with Amplify API first
     try {
+      const response = await post({
+        apiName: 'SubmissionAPI',
+        path: '/process',
+        options: {
+          body: submissionData,
+          headers: { 
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      });
+      
+      return { success: true, response };
+    } catch (apiError) {
+      console.error("Error with Amplify API, falling back to fetch:", apiError);
+      
+      // Fallback to fetch
       const response = await fetch(`${awsConfig.api.invokeUrl}/process`, {
         method: 'POST',
-        headers: {
+        headers: { 
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*'
         },
@@ -141,22 +174,7 @@ export const invokeSubmissionProcessing = async (submissionData: SubmissionRecor
         throw new Error(`API request failed with status ${response.status}`);
       }
       
-      return await response.json();
-    } catch (fetchError) {
-      console.error("Error with fetch, trying Amplify API:", fetchError);
-      
-      // Try using Amplify API
-      const { post } = await import('@aws-amplify/api');
-      
-      const result = await post({
-        apiName: 'SubmissionAPI',
-        path: '/process',
-        options: {
-          body: submissionData
-        }
-      });
-      
-      return result;
+      return { success: true, result: await response.json() };
     }
   } catch (error) {
     console.error("Error invoking Lambda function:", error);
@@ -166,7 +184,7 @@ export const invokeSubmissionProcessing = async (submissionData: SubmissionRecor
       await fetch(`${awsConfig.api.invokeUrl}/process`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        mode: 'no-cors', // Use no-cors as a last resort
+        mode: 'no-cors',
         body: JSON.stringify(submissionData)
       });
       
@@ -181,65 +199,84 @@ export const invokeSubmissionProcessing = async (submissionData: SubmissionRecor
 // Get submission details from DynamoDB via API Gateway
 export const getSubmissionDetails = async (submissionId: string): Promise<SubmissionRecord | null> => {
   try {
-    const response = await fetch(`${awsConfig.api.invokeUrl}/submissions/${submissionId}`, {
-      mode: 'cors',
-      headers: {
-        'Access-Control-Allow-Origin': '*'
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch submission details');
-    }
-    
-    return await response.json();
-  } catch (error) {
-    console.error("Error fetching submission details:", error);
+    console.log('Getting submission details:', submissionId);
     
     try {
-      // Try using Amplify API as fallback
-      const { get } = await import('@aws-amplify/api');
-      const result = await get({
+      // Try using Amplify API
+      const response = await get({
         apiName: 'SubmissionAPI',
         path: `/submissions/${submissionId}`
       });
-      return result;
-    } catch (fallbackError) {
-      console.error("Fallback error:", fallbackError);
-      throw new Error('Failed to fetch submission details');
+      
+      return response.body as SubmissionRecord;
+    } catch (apiError) {
+      console.error("Error with Amplify API, falling back to fetch:", apiError);
+      
+      // Fallback to fetch
+      const response = await fetch(`${awsConfig.api.invokeUrl}/submissions/${submissionId}`, {
+        mode: 'cors',
+        headers: {
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch submission details');
+      }
+      
+      return await response.json();
     }
+  } catch (error) {
+    console.error("Error fetching submission details:", error);
+    throw new Error('Failed to fetch submission details');
   }
 };
 
 // Get all submissions via API Gateway
 export const getAllSubmissions = async (): Promise<SubmissionRecord[]> => {
   try {
-    const response = await fetch(`${awsConfig.api.invokeUrl}/submissions`, {
-      mode: 'cors',
-      headers: {
-        'Access-Control-Allow-Origin': '*'
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch submissions');
-    }
-    
-    return await response.json();
-  } catch (error) {
-    console.error("Error fetching submissions:", error);
+    console.log('Getting all submissions');
     
     try {
-      // Try using Amplify API as fallback
-      const { get } = await import('@aws-amplify/api');
-      const result = await get({
+      // Try using Amplify API
+      const response = await get({
         apiName: 'SubmissionAPI',
         path: '/submissions'
       });
-      return result;
-    } catch (fallbackError) {
-      console.error("Fallback error:", fallbackError);
-      throw new Error('Failed to fetch submissions');
+      
+      // Check if response.body is an array
+      const submissions = response.body;
+      if (Array.isArray(submissions)) {
+        return submissions as SubmissionRecord[];
+      } else {
+        console.warn('API returned non-array response:', submissions);
+        return [];
+      }
+    } catch (apiError) {
+      console.error("Error with Amplify API, falling back to fetch:", apiError);
+      
+      // Fallback to fetch
+      const response = await fetch(`${awsConfig.api.invokeUrl}/submissions`, {
+        mode: 'cors',
+        headers: {
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch submissions');
+      }
+      
+      const result = await response.json();
+      if (Array.isArray(result)) {
+        return result;
+      } else {
+        console.warn('API returned non-array response:', result);
+        return [];
+      }
     }
+  } catch (error) {
+    console.error("Error fetching submissions:", error);
+    return [];
   }
 };
