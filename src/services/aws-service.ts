@@ -8,7 +8,7 @@ import { get, post } from 'aws-amplify/api';
 // Export interfaces for TypeScript typing
 export interface ControlAssessment {
   controlId: string;
-  status: 'pass' | 'fail' | 'pending';
+  controlStatus: 'pass' | 'fail' | 'pending';
   confidenceScore: number;
   notes: string;
   aiAnalysis?: string;
@@ -19,7 +19,7 @@ export interface SubmissionRecord {
   partnerName: string;
   validationType: string;
   competencyCategory?: string;
-  status: 'Pending' | 'In Review' | 'AI Validation' | 'Human Validation' | 'Approved' | 'Rejected';
+  applicationStatus: 'Pending' | 'In Review' | 'AI Validation' | 'Human Validation' | 'Approved' | 'Rejected';
   submittedAt: string;
   controls?: ControlAssessment[];
 }
@@ -79,9 +79,6 @@ export const saveSubmissionToDynamoDB = async (submissionData: SubmissionRecord)
       },
       body: JSON.stringify(submissionData)
     });
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
 
     const result = await response.json();
     console.log("Submission saved in DynamoDB", result);
@@ -156,7 +153,7 @@ export const getAllSubmissions = async (): Promise<SubmissionRecord[]> => {
       partnerName: item.partnerName.S,
       validationType: item.validationType.S,
       competencyCategory: item.competencyCategory?.S,
-      status: item.status.S,
+      applicationStatus: item.applicationStatus.S,
       submittedAt: item.submittedAt.S
     }));
 

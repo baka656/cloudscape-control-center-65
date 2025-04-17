@@ -98,7 +98,7 @@ export default function Submissions() {
         id: data.salesforceId,
         validationType: data.validationType,
         competencyCategory: data.competencyCategory,
-        status: "Pending",
+        applicationStatus: "Pending",
         submittedAt: new Date().toISOString().split('T')[0]
       };
 
@@ -206,9 +206,9 @@ export default function Submissions() {
                       <TableCell>{submission.submittedAt}</TableCell>
                       <TableCell>
                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          statusColors[submission.status as keyof typeof statusColors]
+                          statusColors[submission.applicationStatus as keyof typeof statusColors]
                         }`}>
-                          {submission.status}
+                          {submission.applicationStatus}
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
