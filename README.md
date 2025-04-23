@@ -1,25 +1,11 @@
-# Welcome to your Lovable project
+# Welcome to your VOTER project
+In the resistance against the Terminator machines, VOTER has been developed to assist our solutions architects in rapidly validating partner technologies for deployment. VOTER leverages Foundation Models to automate the validation process, enabling partners to align their solutions with our resistance protocols and accelerate their integration with our systems. Key benefits include reduced validation timelines, increased productivity, and a scalable mechanism to onboard diverse partner solutions. VOTER currently supports validations for our key Competency Programs, including the Generative AI competency.
 
 ## Project info
 
-**URL**: https://lovable.dev/projects/c6c81dab-5f01-400a-9d93-7706abd4533c
+**URL**: https://main.d1d6hqlkd5she4.amplifyapp.com/
 
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/c6c81dab-5f01-400a-9d93-7706abd4533c) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
+**Use this repo**
 Follow these steps:
 
 ```sh
@@ -59,15 +45,3 @@ This project is built with:
 - React
 - shadcn-ui
 - Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/c6c81dab-5f01-400a-9d93-7706abd4533c) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
